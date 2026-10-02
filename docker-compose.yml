@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:///agrimind_local.db
+      DISEASE_MODEL_PATH: ml/artifacts/best.pt
+      CORS_ORIGINS: http://localhost:3000
+    volumes:
+      - ./ml/artifacts:/app/ml/artifacts
+      - ./agrimind_local.db:/app/agrimind_local.db
+  web:
+    image: node:22-alpine
+    working_dir: /app/web
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app/web
+    depends_on:
+      - api

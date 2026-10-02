@@ -1,0 +1,24 @@
+langgraph>=1.2
+sqlalchemy>=2.0
+requests>=2.31
+psycopg2-binary>=2.9
+python-dotenv>=1.0
+fastapi>=0.115
+uvicorn[standard]>=0.34
+pydantic>=2.10
+python-multipart>=0.0.9
+pypdf>=5.0
+
+# ML training/inference
+torch>=2.6
+torchvision>=0.21
+scikit-learn>=1.6
+pillow>=11.0
+numpy>=2.0
+
+# Optional RAG
+# chromadb
+
+# Testing
+pytest>=8.0
+httpx>=0.27

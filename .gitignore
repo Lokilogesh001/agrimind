@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+*.db
+*.sqlite
+*.sqlite3
+ml/artifacts/
+ml/data/
+web/node_modules/
+web/.next/
+web/out/
+.DS_Store
