@@ -20,28 +20,87 @@ def _rainfall_risk(precip_prob: float, intensity: float, duration: float,
 def run(lat: float | None = None, lon: float | None = None,
         override: dict | None = None) -> WeatherResult:
     if override is not None:
-        precip_prob, intensity, duration = (
-            override["precip_prob"], override["intensity"], override["duration"]
-        )
-        confidence = override.get("confidence", 0.85)
+        precip_prob = float(override.get("precip_prob", 0.0))
+        intensity = float(override.get("intensity", 0.0))
+        duration = float(override.get("duration", 0.0))
+        confidence = float(override.get("confidence", 0.85))
+        status = "AVAILABLE"
     else:
-        forecast = fetch_forecast(lat, lon) if lat is not None and lon is not None else None
+        if lat is None or lon is None:
+            return WeatherResult(
+                rainfall_risk=0.0,
+                confidence=0.0,
+                is_available=False,
+                status="UNAVAILABLE",
+                fertilizer_condition="unknown",
+                irrigation_condition="unknown",
+                reason="weather_unavailable",
+            )
+        forecast = fetch_forecast(lat, lon)
         if forecast is None:
             return WeatherResult(
                 rainfall_risk=0.0,
                 confidence=0.0,
                 is_available=False,
+                status="UNAVAILABLE",
                 fertilizer_condition="unknown",
                 irrigation_condition="unknown",
                 reason="weather_unavailable",
             )
-        hourly = forecast.get("hourly", {})
-        probs = hourly.get("precipitation_probability", [0])
-        precs = hourly.get("precipitation", [0])
+
+        status = forecast.get("status", "AVAILABLE")
+        if status == "TIMEOUT":
+            return WeatherResult(
+                rainfall_risk=0.0,
+                confidence=0.0,
+                is_available=False,
+                status="TIMEOUT",
+                fertilizer_condition="unknown",
+                irrigation_condition="unknown",
+                reason="weather_timeout",
+            )
+        if status in ("UNAVAILABLE", "INVALID"):
+            return WeatherResult(
+                rainfall_risk=0.0,
+                confidence=0.0,
+                is_available=False,
+                status=status,
+                fertilizer_condition="unknown",
+                irrigation_condition="unknown",
+                reason="weather_malformed" if status == "INVALID" else "weather_unavailable",
+            )
+
+        hourly = forecast.get("hourly")
+        if not isinstance(hourly, dict):
+            return WeatherResult(
+                rainfall_risk=0.0,
+                confidence=0.0,
+                is_available=False,
+                status="INVALID",
+                fertilizer_condition="unknown",
+                irrigation_condition="unknown",
+                reason="weather_malformed",
+            )
+
+        probs = hourly.get("precipitation_probability")
+        precs = hourly.get("precipitation")
+        if probs is None or precs is None or not isinstance(probs, list) or not isinstance(precs, list):
+            # Missing precipitation fields: do NOT assume zero rainfall!
+            return WeatherResult(
+                rainfall_risk=0.0,
+                confidence=0.0,
+                is_available=False,
+                status="INVALID",
+                fertilizer_condition="unknown",
+                irrigation_condition="unknown",
+                reason="missing_precipitation_data",
+            )
+
         precip_prob = (max(probs) if probs else 0) / 100.0
         intensity = min((max(precs) if precs else 0) / 10.0, 1.0)
         duration = min(sum(1 for p in probs if p > 50) / max(len(probs), 1), 1.0)
         confidence = 0.85
+        status = "AVAILABLE"
 
     risk = _rainfall_risk(precip_prob, intensity, duration)
     fertilizer_condition = "delay" if risk > 0.60 else "normal"
@@ -54,4 +113,5 @@ def run(lat: float | None = None, lon: float | None = None,
         confidence=confidence,
         reason="High rainfall expected" if risk > 0.60 else "Rainfall risk manageable",
         is_available=True,
+        status=status,
     )

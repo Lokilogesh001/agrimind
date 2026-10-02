@@ -1,6 +1,6 @@
 """Soil Agent — nutrient deficiency scoring."""
 from __future__ import annotations
-from data_sources.soil import get_reference_targets
+from data_sources.soil import get_reference_targets, get_provenance
 from orchestrator.state import SoilResult
 
 
@@ -12,6 +12,7 @@ def _deficiency(actual: float, target: float) -> float:
 def run(n: float, p: float, k: float, crop: str = "", soil_type: str = "",
         targets: dict | None = None, weights: dict | None = None) -> SoilResult:
     ref_targets, ref_weights = get_reference_targets(crop, soil_type)
+    prov = get_provenance(crop, soil_type)
     targets = targets or ref_targets
     weights = weights or ref_weights
     dn, dp, dk = _deficiency(float(n), targets["N"]), _deficiency(float(p), targets["P"]), _deficiency(float(k), targets["K"])
@@ -26,4 +27,5 @@ def run(n: float, p: float, k: float, crop: str = "", soil_type: str = "",
         crop=crop,
         soil_type=soil_type,
         calibration_source="icar_crop_soil_calibrated" if crop or soil_type else "standard_default",
+        provenance=prov,
     )

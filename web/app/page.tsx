@@ -105,23 +105,28 @@ export default function Home() {
 
   const agents = useMemo(() => {
     if (!result) return [];
+    const weatherStatus = result.weather.status || (result.weather.is_available === false ? 'UNAVAILABLE' : 'AVAILABLE');
     const weatherDesc = result.weather.is_available === false
-      ? 'Weather service unavailable'
+      ? `Weather service [${weatherStatus}]: ${result.weather.reason || 'offline'}`
       : (result.weather.reason || `Rain risk ${Number(result.weather.rainfall_risk).toFixed(2)}`);
 
-    const soilDesc = `Deficiency ${Number(result.soil.overall_deficiency).toFixed(2)} (${result.soil.priority_nutrient || 'balanced'})`;
+    const provTag = result.soil.provenance?.crop_target_provenance
+      ? ` [${result.soil.provenance.crop_target_provenance.replace('project_calibration_', '')}]`
+      : '';
+    const soilDesc = `Deficiency ${Number(result.soil.overall_deficiency).toFixed(2)} (${result.soil.priority_nutrient || 'balanced'})${provTag}`;
 
     const diseaseDesc = result.disease.predicted_class
       ? (result.disease.normalized_disease
-          ? `${result.disease.predicted_class} (${result.disease.normalized_disease})`
-          : result.disease.predicted_class)
-      : 'No leaf image provided';
+          ? `${result.disease.predicted_class} (${result.disease.normalized_disease}) · severity: ${result.disease.severity} (heuristic)`
+          : `${result.disease.predicted_class} · severity: ${result.disease.severity} (heuristic)`)
+      : 'No leaf image provided (mode C safe)';
 
     const advisoryDesc = result.advisory.preliminary_recommendation || 'monitor';
 
+    const marketStatus = result.market.status || (result.market.is_available === false ? 'UNAVAILABLE' : 'AVAILABLE');
     const marketDesc = result.market.is_available === false
-      ? 'Market signal unavailable'
-      : `Signal: ${result.market.signal} (score ${Number(result.market.market_score || 0).toFixed(2)})`;
+      ? `Market signal [${marketStatus}]: hold fallback`
+      : `Signal: ${result.market.signal} (score ${Number(result.market.market_score || 0).toFixed(2)}) [${marketStatus}]`;
 
     return [
       ['Weather', result.weather.confidence ?? 0.0, weatherDesc],

@@ -20,6 +20,7 @@ class WeatherResult:
     confidence: float = 0.0
     reason: str = ""
     is_available: bool = True
+    status: str = "AVAILABLE"  # AVAILABLE | UNAVAILABLE | INVALID | TIMEOUT
 
 
 @dataclass
@@ -35,6 +36,7 @@ class SoilResult:
     crop: str = ""
     soil_type: str = ""
     calibration_source: str = "icar_standard"
+    provenance: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -46,6 +48,8 @@ class DiseaseResult:
     raw_class: Optional[str] = None
     normalized_disease: Optional[str] = None
     crop_detected: Optional[str] = None
+    severity_source: str = "heuristic_keyword"
+    status: str = "AVAILABLE"  # AVAILABLE | NOT_SUPPLIED | OVERRIDE
 
 
 @dataclass
@@ -64,6 +68,8 @@ class MarketResult:
     signal: str = "hold"
     confidence: float = 0.0
     is_available: bool = True
+    status: str = "AVAILABLE"  # REAL_DATA | UNAVAILABLE | DEMO_DATA
+    source: str = "unspecified"  # agmarknet_api | caller_provided | none
 
 
 @dataclass

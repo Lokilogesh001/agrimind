@@ -26,12 +26,18 @@ def _soil_support(state, action: str) -> float:
 
 
 def _weather_suitability(state, action: str) -> float:
-    # If weather data is unavailable or has 0 confidence, do NOT assume safe weather (r=0.0).
-    # Weather failure must not artificially maximize fertilizer suitability.
+    # If weather data is unavailable, invalid, timed out, or has 0 confidence,
+    # do NOT assume safe weather (r=0.0). Weather failure must not artificially maximize fertilizer suitability.
+    weather = getattr(state, "weather", None)
+    status = getattr(weather, "status", "AVAILABLE") if weather else "UNAVAILABLE"
     if (
-        not getattr(state.weather, "is_available", True)
-        or state.weather.confidence == 0.0
-        or state.weather.reason == "weather_unavailable"
+        weather is None
+        or not getattr(weather, "is_available", True)
+        or weather.confidence == 0.0
+        or status in ("UNAVAILABLE", "INVALID", "TIMEOUT")
+        or getattr(weather, "reason", "") in (
+            "weather_unavailable", "weather_timeout", "weather_malformed", "missing_precipitation_data"
+        )
     ):
         return 0.5  # Neutral conservative suitability
 

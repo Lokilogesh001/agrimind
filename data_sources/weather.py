@@ -18,6 +18,17 @@ def fetch_forecast(lat: float, lon: float, timeout: float = 8) -> dict | None:
             timeout=timeout,
         )
         response.raise_for_status()
-        return response.json()
-    except Exception:
-        return None
+        data = response.json()
+        if not isinstance(data, dict):
+            return {"status": "INVALID", "error": "malformed_json", "hourly": None}
+        if "status" not in data:
+            data["status"] = "AVAILABLE"
+        return data
+    except Exception as exc:
+        try:
+            import requests
+            if isinstance(exc, requests.exceptions.Timeout):
+                return {"status": "TIMEOUT", "error": "timeout", "hourly": None}
+        except Exception:
+            pass
+        return {"status": "UNAVAILABLE", "error": str(exc), "hourly": None}

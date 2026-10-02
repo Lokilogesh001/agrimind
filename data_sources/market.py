@@ -19,6 +19,11 @@ def fetch_prices(crop: str, market: str | None = None, timeout: float = 8) -> di
             params["market"] = market
         response = requests.get(base, params=params, timeout=timeout)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        if not isinstance(data, dict):
+            return None
+        data["source"] = "agmarknet_api"
+        data["status"] = "REAL_DATA"
+        return data
     except Exception:
         return None

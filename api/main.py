@@ -95,6 +95,17 @@ def _serialize(state):
     trail = obs.get_run_trail(state.run_id)
     llm_logs = [x for x in trail.get("agent_logs", []) if x.get("agent") == "llm_explainer"]
     llm_metadata = llm_logs[-1].get("output", {}) if llm_logs else {}
+    if llm_metadata:
+        toks = llm_metadata.get("tokens") or {}
+        obs.log_run_complete(
+            state.run_id,
+            state.final_recommendation or "unknown",
+            state.confidence or 0.0,
+            llm_provider=llm_metadata.get("provider", ""),
+            llm_status=llm_metadata.get("status", ""),
+            prompt_tokens=toks.get("prompt_tokens"),
+            completion_tokens=toks.get("completion_tokens"),
+        )
     return {
         "run_id": state.run_id,
         "recommendation": state.final_recommendation,
@@ -115,7 +126,7 @@ def _serialize(state):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "agrimind-api", "version": "1.0.0"}
+    return {"status": "ok", "service": "agrimind-api", "version": "1.1.0"}
 
 
 @app.post("/api/advisory")

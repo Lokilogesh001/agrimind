@@ -25,13 +25,19 @@ def run(
 ) -> MarketResult:
     weights = weights or {"trend": 0.5, "volatility": 0.3, "arrival": 0.2}
     price_history = price_history or []
+    source = "caller_provided" if (current_price > 0 or price_history) else "none"
+    status = "DEMO_DATA" if (current_price > 0 or price_history) else "UNAVAILABLE"
 
     # If caller provided no price data, attempt live fetch from Agmarknet adapter
     if current_price <= 0 and not price_history and crop:
         market_data = fetch_prices(crop=crop, market=market)
         if market_data and isinstance(market_data, dict):
-            current_price = float(market_data.get("current_price", current_price))
-            price_history = [float(x) for x in market_data.get("price_history", price_history)]
+            cp = market_data.get("current_price")
+            if cp is not None and float(cp) > 0:
+                current_price = float(cp)
+                price_history = [float(x) for x in market_data.get("price_history", [])]
+                source = market_data.get("source", "agmarknet_api")
+                status = market_data.get("status", "REAL_DATA")
 
     prices = [float(x) for x in price_history if float(x) >= 0]
 
@@ -44,6 +50,8 @@ def run(
             signal="hold",
             confidence=0.0,
             is_available=False,
+            status="UNAVAILABLE",
+            source="none",
         )
 
     effective_price = float(current_price) if current_price > 0 else (prices[-1] if prices else 0.0)
@@ -74,4 +82,6 @@ def run(
         signal=signal,
         confidence=confidence,
         is_available=True,
+        status=status,
+        source=source,
     )

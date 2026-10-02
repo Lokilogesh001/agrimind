@@ -159,6 +159,7 @@ def get_graph():
 
 
 def run_advisory(inputs: dict) -> AgriMindState:
+    start_time = time.monotonic()
     run_id = str(uuid.uuid4())
     initial_state = AgriMindState(
         run_id=run_id,
@@ -185,9 +186,27 @@ def run_advisory(inputs: dict) -> AgriMindState:
         state = initial_state
         for node in (node_weather, node_soil, node_disease, node_advisory, node_market, node_decision):
             state = node(state)
-        obs.log_run_complete(state.run_id, state.final_recommendation or "unknown", state.confidence or 0.0)
+        total_ms = round((time.monotonic() - start_time) * 1000, 2)
+        obs.log_run_complete(
+            state.run_id,
+            state.final_recommendation or "unknown",
+            state.confidence or 0.0,
+            total_latency_ms=total_ms,
+            weather_status=getattr(state.weather, "status", "AVAILABLE"),
+            market_status=getattr(state.market, "status", "AVAILABLE"),
+            disease_status=getattr(state.disease, "status", "AVAILABLE"),
+        )
         return state
     final_output = graph.invoke(initial_state)
     state = final_output if isinstance(final_output, AgriMindState) else AgriMindState(**final_output)
-    obs.log_run_complete(state.run_id, state.final_recommendation or "unknown", state.confidence or 0.0)
+    total_ms = round((time.monotonic() - start_time) * 1000, 2)
+    obs.log_run_complete(
+        state.run_id,
+        state.final_recommendation or "unknown",
+        state.confidence or 0.0,
+        total_latency_ms=total_ms,
+        weather_status=getattr(state.weather, "status", "AVAILABLE"),
+        market_status=getattr(state.market, "status", "AVAILABLE"),
+        disease_status=getattr(state.disease, "status", "AVAILABLE"),
+    )
     return state
