@@ -21,22 +21,38 @@ class WeatherResult:
     reason: str = ""
     is_available: bool = True
     status: str = "AVAILABLE"  # AVAILABLE | UNAVAILABLE | INVALID | TIMEOUT
+    risk_level: str = "LOW"    # LOW | MODERATE | HIGH | SEVERE
+    risk_explanation: str = ""
+    precipitation_probability: Optional[float] = None
+    rainfall_amount_mm: Optional[float] = None
 
 
 @dataclass
 class SoilResult:
-    nitrogen_deficiency: float = 0.0
-    phosphorus_deficiency: float = 0.0
-    potassium_deficiency: float = 0.0
-    overall_deficiency: float = 0.0
+    nitrogen_deficiency: Optional[float] = None
+    phosphorus_deficiency: Optional[float] = None
+    potassium_deficiency: Optional[float] = None
+    overall_deficiency: Optional[float] = None
+    nutrient_status: str = "UNAVAILABLE"  # MEASURED | UNAVAILABLE
+    nutrient_assessment_text: str = ""
     priority_nutrient: str = ""
     confidence: float = 0.0
     supplied: dict = field(default_factory=dict)
     targets: dict = field(default_factory=dict)
     crop: str = ""
     soil_type: str = ""
-    calibration_source: str = "icar_standard"
+    calibration_source: str = "project_calibration_heuristic"
     provenance: dict = field(default_factory=dict)
+    npk_available: bool = True
+    status: str = "AVAILABLE"  # MEASURED | LOCATION_ESTIMATED | USER_SELECTED | UNAVAILABLE
+
+    def __post_init__(self):
+        if self.overall_deficiency is None and not self.supplied:
+            self.npk_available = False
+            self.nutrient_status = "UNAVAILABLE"
+        elif self.overall_deficiency is not None:
+            self.npk_available = True
+            self.nutrient_status = "MEASURED"
 
 
 @dataclass
@@ -50,6 +66,12 @@ class DiseaseResult:
     crop_detected: Optional[str] = None
     severity_source: str = "heuristic_keyword"
     status: str = "AVAILABLE"  # AVAILABLE | NOT_SUPPLIED | OVERRIDE
+    crop_mismatch: bool = False
+    confidence_gate_passed: bool = False
+    crop_match_passed: bool = True
+    action_status: str = "INACTIVE"  # ALLOWED | BLOCKED | INACTIVE
+    block_reason: str = ""
+
 
 
 @dataclass
@@ -70,6 +92,7 @@ class MarketResult:
     is_available: bool = True
     status: str = "AVAILABLE"  # REAL_DATA | UNAVAILABLE | DEMO_DATA
     source: str = "unspecified"  # agmarknet_api | caller_provided | none
+    authoritative: bool = False
 
 
 @dataclass
@@ -97,5 +120,25 @@ class AgriMindState:
     confidence: Optional[float] = None
     execution_trace: list = field(default_factory=list)
 
+    # Core Novelty — Adaptive Evidence & Conflict Resolution
+    evidence_items: list = field(default_factory=list)
+    decision_stability_score: float = 0.0
+    stability_level: str = "INSUFFICIENT"  # HIGH | MODERATE | LOW | INSUFFICIENT
+    supporting_evidence: list = field(default_factory=list)
+    conflicting_evidence: list = field(default_factory=list)
+    resolved_conflicts: list = field(default_factory=list)
+    re_evaluation_trigger: str = ""
+    required_additional_info: list = field(default_factory=list)
+    decision_provenance: dict = field(default_factory=dict)
+    evidence_quality_score: float = 0.0
+    evidence_quality_level: str = "INSUFFICIENT"  # EXCELLENT | GOOD | MODERATE | LOW | INSUFFICIENT
+    evidence_quality_breakdown: Optional[dict] = None
+    safety_constraints: list = field(default_factory=list)
+    decision_change_triggers: list = field(default_factory=list)
+    agronomic_recommendation: Optional[str] = None
+    market_recommendation: Optional[str] = None
+    farm_advisory: Optional[str] = None
+
     def log(self, event: str):
         self.execution_trace.append(event)
+

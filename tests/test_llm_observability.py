@@ -68,9 +68,9 @@ def test_no_key_uses_deterministic_fallback(monkeypatch):
     result = explainer.explain_with_metadata(state)
 
     assert result.provider == "deterministic"
-    assert result.status == "fallback"
+    assert result.status == "deterministic"
     assert result.fallback_used is False
-    assert "No LLM API key configured" in (result.error or "")
+    assert result.error is None
 
 
 def test_openai_compatible_uses_current_xai_safe_payload(monkeypatch):

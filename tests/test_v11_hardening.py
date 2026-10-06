@@ -301,4 +301,65 @@ def test_e2e_scenario_18_no_external_api_keys(monkeypatch):
     data = res.json()
     assert "Recommendation:" in data["explanation"]
     assert data["llm"]["provider"] == "deterministic"
-    assert data["llm"]["status"] == "fallback"
+    assert data["llm"]["status"] == "deterministic"
+    assert data["llm"]["fallback_used"] is False
+
+
+def test_market_demo_data_provenance_and_summary_availability():
+    """Verify market DEMO_DATA provenance, non-authoritative flag, and summary available=True."""
+    inputs = {
+        "crop": "tomato",
+        "current_price": 2200,
+        "price_history": [2000, 2100, 2200],
+    }
+    res = client.post("/api/advisory", json=inputs)
+    assert res.status_code == 200
+    data = res.json()
+    run_id = data["run_id"]
+
+    # Market agent response checks
+    assert data["market"]["status"] == "DEMO_DATA"
+    assert data["market"]["is_available"] is True
+    assert data["market"]["source"] == "caller_provided"
+    assert data["market"]["authoritative"] is False
+
+    # Observability run summary checks
+    sum_res = client.get(f"/api/runs/{run_id}")
+    assert sum_res.status_code == 200
+    sum_data = sum_res.json()["summary"]
+    assert sum_data["data_sources_available"]["market"] is True
+    assert sum_data["market_provenance"]["status"] == "DEMO_DATA"
+    assert sum_data["market_provenance"]["authoritative"] is False
+
+
+def test_market_sell_signal_does_not_override_agronomic_action():
+    """Verify that a market SELL signal does not override agronomic crop management in vegetative stage."""
+    inputs = {
+        "crop": "tomato",
+        "growth_stage": "vegetative",
+        "n": 10,
+        "p": 15,
+        "k": 20,
+        "current_price": 3000,
+        "price_history": [2000, 2500, 3000],  # Strong upward trend -> SELL signal
+        "weather_override": {"precip_prob": 0.05, "intensity": 0.0, "duration": 0.0},
+    }
+    res = client.post("/api/advisory", json=inputs)
+    assert res.status_code == 200
+    data = res.json()
+
+    # Agronomic recommendation must remain authoritative (not 'sell')
+    assert data["recommendation"] in ("apply_fertilizer", "monitor")
+    assert data["market"]["signal"] == "sell"
+    assert data["agronomic_recommendation"] in ("apply_fertilizer", "monitor")
+    assert data["market_recommendation"] == "sell"
+    assert "Agronomic:" in data["farm_advisory"]
+
+    # Conflict list must contain market_vs_agronomic_management conflict with 3-part advisory
+    conflicts = data.get("resolved_conflicts", [])
+    market_conf = [c for c in conflicts if "market" in str(c.get("conflict_type", "")).lower() or "market" in str(c.get("agent_a", "")).lower()]
+    assert len(market_conf) > 0
+    c = market_conf[0]
+    assert "agronomic_recommendation" in c
+    assert c["market_recommendation"] == "sell"
+    assert "final_advisory" in c

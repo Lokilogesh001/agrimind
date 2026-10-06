@@ -27,7 +27,18 @@ def normalize_disease_label(label: str | None) -> dict[str, str]:
         parts = clean.split("_", 1)
         crop_part, disease_part = parts[0], parts[1]
     else:
-        crop_part, disease_part = "", clean
+        # Space-separated labels like 'Tomato Early Blight' or 'Rice Blast'
+        parts = clean.split()
+        first_token = parts[0].lower() if parts else ""
+        from data_sources.crops import CROPS_REGISTRY
+        known_crops = {c["name"].lower() for c in CROPS_REGISTRY} | {
+            "tomato", "potato", "corn", "rice", "wheat", "cotton", "apple", "grape", "cherry",
+            "peach", "pepper", "strawberry", "orange", "soybean", "squash", "maize", "sugarcane"
+        }
+        if first_token in known_crops and len(parts) > 1:
+            crop_part, disease_part = parts[0], " ".join(parts[1:])
+        else:
+            crop_part, disease_part = "", clean
 
     crop_clean = crop_part.replace("_", " ").split("(")[0].strip().lower()
     dis_clean = disease_part.replace("_", " ").replace("  ", " ").strip().lower()
@@ -68,12 +79,44 @@ def classify(image_path: str, model=None) -> dict:
     return predictor.predict(image_path)
 
 
-def run(image_path: str | None = None, model=None, override: dict | None = None) -> DiseaseResult:
+def _check_crop_mismatch(selected: str, detected: str | None) -> bool:
+    if not selected or not detected:
+        return False
+    s = selected.strip().lower()
+    d = detected.strip().lower()
+    # Normalize synonyms
+    s_norm = "rice" if s in ["rice", "paddy"] else ("maize" if s in ["maize", "corn"] else s)
+    d_norm = "rice" if d in ["rice", "paddy"] else ("maize" if d in ["maize", "corn"] else d)
+    return s_norm != d_norm and s_norm not in d_norm and d_norm not in s_norm
+
+
+def run(
+    image_path: str | None = None,
+    model=None,
+    override: dict | None = None,
+    selected_crop: str = "",
+) -> DiseaseResult:
     # Case B: disease_override supplied
     if override is not None:
         predicted_class = override.get("predicted_class")
         confidence = float(override.get("confidence", 0.0))
         norm = normalize_disease_label(predicted_class)
+        mismatch = _check_crop_mismatch(selected_crop, norm["crop"])
+        conf_gate_passed = confidence >= LOW_CONFIDENCE_GATE
+        crop_match_passed = not mismatch
+        actionable = conf_gate_passed and crop_match_passed
+        if mismatch:
+            action_status = "BLOCKED"
+            c_det = (norm.get("crop") or "Tomato").capitalize()
+            c_sel = (selected_crop or "Rice").capitalize()
+            block_reason = f"Predicted crop is {c_det} but selected crop is {c_sel}."
+        elif not conf_gate_passed:
+            action_status = "BLOCKED"
+            block_reason = f"The disease signal is below the {LOW_CONFIDENCE_GATE:.2f} confidence gate."
+        else:
+            action_status = "ALLOWED"
+            block_reason = ""
+
         return DiseaseResult(
             predicted_class=predicted_class,
             raw_class=predicted_class,
@@ -81,7 +124,13 @@ def run(image_path: str | None = None, model=None, override: dict | None = None)
             crop_detected=norm["crop"],
             confidence=round(confidence, 4),
             severity=_infer_severity(predicted_class),
-            actionable=confidence >= LOW_CONFIDENCE_GATE,
+            actionable=actionable,
+            crop_mismatch=mismatch,
+            confidence_gate_passed=conf_gate_passed,
+            crop_match_passed=crop_match_passed,
+            action_status=action_status,
+            block_reason=block_reason,
+            status="OVERRIDE",
         )
 
     # Case A: image supplied and exists
@@ -90,6 +139,22 @@ def run(image_path: str | None = None, model=None, override: dict | None = None)
         predicted_class = result["predicted_class"]
         confidence = float(result["confidence"])
         norm = normalize_disease_label(predicted_class)
+        mismatch = _check_crop_mismatch(selected_crop, norm["crop"])
+        conf_gate_passed = confidence >= LOW_CONFIDENCE_GATE
+        crop_match_passed = not mismatch
+        actionable = conf_gate_passed and crop_match_passed
+        if mismatch:
+            action_status = "BLOCKED"
+            c_det = (norm.get("crop") or "Tomato").capitalize()
+            c_sel = (selected_crop or "Rice").capitalize()
+            block_reason = f"Predicted crop is {c_det} but selected crop is {c_sel}."
+        elif not conf_gate_passed:
+            action_status = "BLOCKED"
+            block_reason = f"The disease signal is below the {LOW_CONFIDENCE_GATE:.2f} confidence gate."
+        else:
+            action_status = "ALLOWED"
+            block_reason = ""
+
         return DiseaseResult(
             predicted_class=predicted_class,
             raw_class=predicted_class,
@@ -97,7 +162,13 @@ def run(image_path: str | None = None, model=None, override: dict | None = None)
             crop_detected=norm["crop"],
             confidence=round(confidence, 4),
             severity=_infer_severity(predicted_class),
-            actionable=confidence >= LOW_CONFIDENCE_GATE,
+            actionable=actionable,
+            crop_mismatch=mismatch,
+            confidence_gate_passed=conf_gate_passed,
+            crop_match_passed=crop_match_passed,
+            action_status=action_status,
+            block_reason=block_reason,
+            status="AVAILABLE",
         )
 
     # Case C: No image + no disease_override
@@ -110,4 +181,11 @@ def run(image_path: str | None = None, model=None, override: dict | None = None)
         confidence=0.0,
         severity="low",
         actionable=False,
+        crop_mismatch=False,
+        confidence_gate_passed=False,
+        crop_match_passed=True,
+        action_status="INACTIVE",
+        block_reason="No leaf image provided",
+        status="NOT_SUPPLIED",
     )
+

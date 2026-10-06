@@ -99,7 +99,72 @@ def get_reference_targets(crop: str = "", soil_type: str = "") -> tuple[dict, di
     return targets, weights
 
 
-def get_provenance(crop: str = "", soil_type: str = "") -> dict:
+# Standard Manual Soil Type Options
+STANDARD_SOIL_TYPES = [
+    {"id": "sandy", "name": "Sandy"},
+    {"id": "sandy_loam", "name": "Sandy Loam"},
+    {"id": "loam", "name": "Loam"},
+    {"id": "clay", "name": "Clay"},
+    {"id": "clay_loam", "name": "Clay Loam"},
+    {"id": "red", "name": "Red Soil"},
+    {"id": "black", "name": "Black Soil"},
+    {"id": "alluvial", "name": "Alluvial"},
+    {"id": "laterite", "name": "Laterite"},
+    {"id": "unknown", "name": "Unknown"},
+]
+
+
+def estimate_soil_from_location(
+    location_name: str = "",
+    lat: float | None = None,
+    lon: float | None = None,
+) -> dict[str, Any]:
+    """Provide conservative location-derived soil estimation.
+
+    Never claims location-derived soil is measured field data.
+    """
+    loc_clean = (location_name or "").lower()
+
+    soil_type = "loam"
+    region_source = "regional_agroclimatic_heuristic"
+
+    if any(k in loc_clean for k in ["punjab", "haryana", "uttar pradesh", "bihar", "bengal", "ganga", "karnal", "ludhiana", "varanasi"]):
+        soil_type = "alluvial"
+    elif any(k in loc_clean for k in ["maharashtra", "deccan", "pune", "nashik", "indore", "madhya pradesh"]):
+        soil_type = "black"
+    elif any(k in loc_clean for k in ["tamil nadu", "chennai", "madurai", "coimbatore", "karnataka", "andhra", "guntur", "telangana", "odisha"]):
+        soil_type = "red"
+    elif any(k in loc_clean for k in ["rajasthan", "thar", "gujarat", "anand"]):
+        soil_type = "sandy_loam"
+    elif lat is not None and lon is not None:
+        if lat > 26.0 and 74.0 <= lon <= 88.0:
+            soil_type = "alluvial"
+        elif 16.0 <= lat <= 24.0 and 73.0 <= lon <= 80.0:
+            soil_type = "black"
+        elif lat < 16.0:
+            soil_type = "red"
+        else:
+            soil_type = "loam"
+    else:
+        return {
+            "soil_type": "unknown",
+            "source": "none",
+            "confidence": 0.0,
+            "status": "UNAVAILABLE",
+            "is_measured": False,
+        }
+
+    return {
+        "soil_type": soil_type,
+        "source": region_source,
+        "confidence": 0.60,
+        "status": "LOCATION_ESTIMATED",
+        "is_measured": False,
+        "note": "Estimated from regional agro-ecological zone; not a field measurement.",
+    }
+
+
+def get_provenance(crop: str = "", soil_type: str = "", mode: str = "MEASURED", npk_available: bool = True) -> dict:
     """Return explicit provenance audit metadata for the given crop and soil configuration."""
     crop_key = (crop or "").strip().lower().replace(" ", "_")
     soil_key = (soil_type or "").strip().lower()
@@ -107,14 +172,22 @@ def get_provenance(crop: str = "", soil_type: str = "") -> dict:
     crop_prov = PROVENANCE_HEURISTIC if crop_key in CROP_TARGETS else PROVENANCE_FALLBACK
     soil_prov = PROVENANCE_HEURISTIC if soil_key in SOIL_TYPE_MULTIPLIERS else PROVENANCE_FALLBACK
 
+    valid_modes = {"MEASURED", "LOCATION_ESTIMATED", "USER_SELECTED", "UNAVAILABLE"}
+    provenance_mode = mode if mode in valid_modes else ("MEASURED" if npk_available else "UNAVAILABLE")
+
     return {
         "crop": crop or "unspecified",
         "soil_type": soil_type or "unspecified",
         "crop_target_provenance": crop_prov,
         "soil_multiplier_provenance": soil_prov,
+        "mode": provenance_mode,
+        "npk_available": npk_available,
         "is_authoritative_icar": False,
         "guidance_note": (
             "Values are project calibration heuristics. Real field application should be "
             "cross-referenced with local SAU Package of Practices or district KVK recommendations."
+            if npk_available
+            else "NPK values not measured. Soil deficiency evaluation skipped to avoid fabricating nutrition data."
         ),
     }
+

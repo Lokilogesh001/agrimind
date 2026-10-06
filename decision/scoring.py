@@ -8,6 +8,8 @@ doc Section 10 for the "pending empirical validation" note.
 
 from __future__ import annotations
 
+ACTIONS = ("apply_fertilizer", "delay", "monitor")
+
 DEFAULT_WEIGHTS = {
     "soil": 0.35,
     "weather": 0.30,
@@ -17,11 +19,16 @@ DEFAULT_WEIGHTS = {
 
 
 def _soil_support(state, action: str) -> float:
+    soil = getattr(state, "soil", None)
+    if not soil or not getattr(soil, "npk_available", True) or getattr(soil, "overall_deficiency", None) is None:
+        if action == "apply_fertilizer":
+            return 0.0
+        return 0.5
     d = state.soil.overall_deficiency
     if action == "apply_fertilizer":
         return d
     if action == "delay":
-        return 1 - d
+        return 1.0 - d
     return 0.5  # monitor: neutral
 
 

@@ -52,6 +52,7 @@ def run(
             is_available=False,
             status="UNAVAILABLE",
             source="none",
+            authoritative=False,
         )
 
     effective_price = float(current_price) if current_price > 0 else (prices[-1] if prices else 0.0)
@@ -81,7 +82,8 @@ def run(
         market_score=score,
         signal=signal,
         confidence=confidence,
-        is_available=True,
+        is_available=(status in {"REAL_DATA", "DEMO_DATA"}),
         status=status,
         source=source,
+        authoritative=False,
     )

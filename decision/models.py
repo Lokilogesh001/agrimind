@@ -8,6 +8,7 @@ class ConflictSpec:
     agent_a: str
     agent_b: str
     issue: str
+    conflict_type: str = ""
 
 @dataclass
 class Decision:
@@ -21,7 +22,7 @@ class Decision:
 
     def to_conflict_row(self, run_id: str, agent_a: str | None = None, agent_b: str | None = None, issue: str | None = None) -> dict:
         if all(x is not None for x in (agent_a, agent_b, issue)):
-            return {"run_id": run_id, "agent_a": agent_a, "agent_b": agent_b, "issue": issue, "resolution": f"{self.action} ({self.reason})", "priority": self.priority}
+            return {"run_id": run_id, "agent_a": agent_a, "agent_b": agent_b, "issue": issue, "conflict_type": issue, "resolution": f"{self.action} ({self.reason})", "priority": self.priority}
         rows = self.to_conflict_rows(run_id)
         if not rows:
             raise ValueError("Decision contains no conflict specification")
@@ -39,3 +40,5 @@ class Decision:
             }
             for c in self.overrides
         ]
+
+

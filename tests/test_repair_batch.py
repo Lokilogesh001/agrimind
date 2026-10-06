@@ -143,7 +143,7 @@ def test_soil_result_metadata():
     assert res.targets["N"] == 120.0
     assert res.crop == "Tomato"
     assert res.soil_type == "loam"
-    assert res.calibration_source == "icar_crop_soil_calibrated"
+    assert res.calibration_source == "project_calibration_heuristic"
     assert res.overall_deficiency > 0.0
 
 

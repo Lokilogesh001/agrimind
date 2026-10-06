@@ -1,252 +1,194 @@
-# AgriMind
+# 🌾 AgriMind
 
-**Observable multi-agent orchestration system for intelligent crop advisory.**
-
-## 1. Project Purpose
-
-AgriMind is a multi-agent agronomic advisory platform designed to deliver safe, transparent, auditable, and scientifically calibrated crop guidance to farmers and agricultural extension officers. It resolves the core flaw of purely generative agricultural AI—hallucinations and ungrounded advice—by decoupling decision computation from explanation:
-
-- **Deterministic Core**: Agronomic actions, fertilizer adjustments, disease treatments, and weather safety policies are calculated via deterministic rules and validated scoring functions. LLMs never select or override agronomic decisions.
-- **Explainability**: LLMs (or deterministic fallback templates) translate structured agent findings and ICAR (Indian Council of Agricultural Research) evidence into clear, localized explanations.
-- **Traceability & Provenance**: Every output is linked to an auditable run ID capturing agent states, confidence levels, data source availability, heuristic/authoritative tags, and conflict resolutions.
+> **Multi-Agent Resilient Agricultural Advisory & Decision Platform**  
+> Deterministic agronomic safety, autonomous domain specialists, on-device vision inference, and official ICAR institutional grounding.
 
 ---
 
-## 2. System Architecture
+## 🚀 ONE-Command Startup
 
-The pipeline processes user context through five specialized agents, resolves conflicts via a multi-stage deterministic engine, retrieves ICAR grounding, generates an auditable advisory, and logs the execution to an observability store:
-
-```text
-Farmer Context + Optional Image / Soil Nutrients
-                     │
-         ┌───────────┴───────────┐
-         ▼                       ▼
-    Weather Agent           Soil Agent
- (Open-Meteo API / Safe)  (NPK & Soil Texture)
-         │                       │
-         └───────────┬───────────┘
-                     ▼
-               Disease Agent
-        (MobileNetV3 / Override / Text)
-                     │
-         ┌───────────┴───────────┐
-         ▼                       ▼
-   Market Agent            Advisory Agent
-(Agmarknet / Fallback) (Nutrient Requirements)
-         │                       │
-         └───────────┬───────────┘
-                     ▼
-       Deterministic Decision Engine
-     (Safety Policies P1–P5 + Scoring)
-                     │
-                     ▼
-          ICAR Knowledge RAG
-     (Official 2025 Kharif Advisories)
-                     │
-                     ▼
-           LLM Explanation Layer
-      (Grok / Groq / Gemini / Template)
-                     │
-                     ▼
-       Auditable Response + Web UI
-    (Run-level trace in SQLite/Postgres)
-```
-
----
-
-## 3. Installation
-
-Prerequisites:
-- Python 3.10+ (tested on Python 3.11/3.12)
-- Node.js 18+ and npm
-- SQLite3 (default local database)
+Start the complete application (FastAPI backend + Next.js frontend) with a single command from the project root:
 
 ```bash
-# Clone and enter directory
-cd agrimind_batch1
+# 1. Install all dependencies (backend + frontend)
+npm install
 
-# Python virtual environment
-python -m venv .venv
-# Activate virtual environment (Windows PowerShell: .venv\Scripts\Activate.ps1)
-# Activate virtual environment (Linux/macOS: source .venv/bin/activate)
+# 2. Launch complete AgriMind platform
+npm run dev
+```
 
-# Install Python dependencies
-pip install -r requirements.txt
+### Active Services:
+- **💻 Web Application:** [http://localhost:3000](http://localhost:3000)
+- **📡 REST API Gateway:** [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **📚 Interactive API Docs (Swagger):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-# Install frontend dependencies
-cd web
-npm ci
-cd ..
+*To stop all services, press `Ctrl+C`. All child processes and ports will be released immediately.*
+
+---
+
+## 📖 Executive Summary & Problem Statement
+
+Smallholder farmers in India face significant challenges from unpredictable monsoon patterns, emerging crop diseases, soil nutrient exhaustion, and volatile mandi market prices. Conventional approaches either rely on static advice charts or generic LLMs that hallucinate untested agrochemicals and fail to recognize critical meteorological safety hazards.
+
+**AgriMind** bridges this gap by decoupling evidence gathering from safety-critical decision logic:
+1. **Specialist Domain Agents** gather signals from satellite meteorology, soil chemistry, computer vision, and mandi feeds.
+2. **Deterministic Decision Core** enforces non-overridable safety guards (e.g. Rainfall Safety Vetoes) and arbitrates trade-offs using a prioritized P1–P5 conflict hierarchy.
+3. **Institutional Grounding (RAG)** retrieves verified agronomic guidance from the official **2025 ICAR Kharif Agro-Advisories** corpus.
+4. **LLM Explainer Layer** translates the deterministic recommendation into clear, actionable advice across multiple providers (xAI Grok, Groq Llama, Google Gemini) with a built-in offline rule template fallback.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    User(["Farmer / Extension Officer"]) <-->|Web UI| NextJS["Next.js 16 Web Dashboard\n(React 19, Turbopack - Port 3000)"]
+    NextJS <-->|REST API| FastAPI["FastAPI 1.2 Gateway\n(Uvicorn ASGI - Port 8000)"]
+    FastAPI --> LangGraph["LangGraph StateGraph Engine\n(AdvisoryState)"]
+
+    subgraph Agents ["Specialist Autonomous Agents"]
+        WeatherAgent["Weather Agent\n(Open-Meteo Forecast)"]
+        SoilAgent["Soil Agent\n(Crop NPK Benchmarks)"]
+        DiseaseAgent["Disease Vision Agent\n(MobileNetV3 PyTorch)"]
+        MarketAgent["Market Agent\n(Agmarknet Price Momentum)"]
+        AdvisoryAgent["Advisory Heuristic Agent\n(Preliminary Action Scoring)"]
+    end
+
+    LangGraph --> Agents
+
+    subgraph DecisionEngine ["Deterministic Decision Core"]
+        Stage1["Stage 1: Hard Safety Guards\n(Guards A - F: Rainfall Veto, Disease Alert)"]
+        Stage2["Stage 2: P1 - P5 Conflict Resolution & Scoring\n(Decision Stability Score - DSS)"]
+        Agents --> Stage1
+        Stage1 --> Stage2
+    end
+
+    Stage2 --> RAG["ICAR 2025 RAG Retriever\n(TF-IDF + Metadata Reranker)"]
+    Stage2 --> LLM["Multi-Provider LLM Explainer\n(xAI -> Groq -> Gemini -> Rule Template)"]
+    RAG --> LLM
+
+    Stage2 --> DB[("Relational Observability Store\n(agrimind_local.db / PostgreSQL)")]
+    LLM --> DB
+    DB --> NextJS
 ```
 
 ---
 
-## 4. Environment Variables
+## ⚡ Key Features
 
-Create a `.env` file from `.env.example`:
+- **🛡️ Deterministic Safety Core:** Enforces Hard Safety Guards (A–F). When predicted precipitation exceeds 70% or 5mm, chemical fertilizer application is vetoed (`DELAY`) to prevent leaching and economic waste.
+- **👁️ On-Device Disease Vision:** Custom PyTorch MobileNetV3 model trained on 38 plant disease classes with a 60% confidence gate preventing automated misdiagnosis.
+- **📚 2025 ICAR Institutional RAG:** 1,219 cleaned advisory chunks extracted from official ICAR Kharif guidance, indexed with hybrid TF-IDF and metadata-aware reranking.
+- **📊 Decision Stability Score (DSS):** Computes recommendation resilience ($0.0$ to $1.0$) with corresponding re-evaluation triggers (`HIGH`, `MODERATE`, `LOW`).
+- **🔍 Full Traceability & Observability:** Relational ledger recording 9-step execution traces, agent latencies, conflict arbitration logs, and farmer feedback.
+- **🌐 Zero-Downtime LLM Router:** Automatic fallback across xAI Grok-4.6, Groq Llama-3.3-70b, Google Gemini-2.5-Flash, and offline deterministic templates.
+
+---
+
+## 💻 Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | Next.js 16.3.4 (Turbopack), React 19, TypeScript 5.7, Tailwind CSS |
+| **Backend API** | FastAPI 0.115, Uvicorn 0.34, Pydantic 2.10 (strict `extra="forbid"`) |
+| **Orchestration** | LangGraph 1.2 StateGraph, Python 3.10+ / 3.14.2 |
+| **Machine Learning** | PyTorch 2.6, Torchvision 0.21, Pillow, Scikit-learn (TF-IDF) |
+| **Database** | SQLite (`agrimind_local.db`) / PostgreSQL (Supabase), SQLAlchemy 2.0 |
+| **External APIs** | Open-Meteo Weather API, Open-Meteo Geocoding, Agmarknet |
+| **Testing** | Pytest 9.1 (130 automated tests passing), HTTPX |
+
+---
+
+## 📋 Available Developer Commands
+
+All core tasks can be run directly from the project root:
+
+```bash
+# Development: Start both Backend and Frontend with one command
+npm run dev
+
+# Testing: Run full test suite (130 automated tests)
+npm test
+
+# Product Testing: Run offline agricultural safety gate checks
+npm run test:product
+
+# Typecheck: Run TypeScript compiler check on frontend
+npm run lint
+
+# Build: Compile Next.js production bundle
+npm run build
+
+# Production: Start production backend and frontend
+npm start
+
+# Cleanup: Clean all cache directories, __pycache__, and build artifacts
+npm run clean
+```
+
+---
+
+## ⚙️ Environment Configuration
+
+Copy the template file to configure your local environment:
 
 ```bash
 cp .env.example .env
 ```
 
-Key environment configuration:
-- `DATABASE_URL`: SQLAlchemy connection string (default: `sqlite:///agrimind_local.db`).
-- `OPEN_METEO_BASE_URL`: Forecast endpoint (default: `https://api.open-meteo.com/v1/forecast`).
-- `AGMARKNET_BASE_URL`: Agmarknet API endpoint. If empty, market agent safely runs in `DEMO_DATA` / `UNAVAILABLE` fallback mode.
-- `DISEASE_MODEL_PATH`: PyTorch model weights path (default: `ml/artifacts/best.pt`).
-- `CORS_ORIGINS`: Allowed origins list (default: `http://localhost:3000,http://127.0.0.1:3000`).
-- `XAI_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`: Optional provider keys for natural language explanations.
-- `LLM_PROVIDER_ORDER`: Fallback sequence (default: `xai,groq,gemini`).
+### Core Environment Variables:
+```ini
+# Database & Core
+DATABASE_URL=sqlite:///agrimind_local.db
+DISEASE_MODEL_PATH=ml/artifacts/best.pt
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
----
+# Weather API (no key required for standard usage)
+OPEN_METEO_BASE_URL=https://api.open-meteo.com/v1/forecast
 
-## 5. Running the Backend
-
-Start the FastAPI application:
-
-```bash
-uvicorn api.main:app --reload --port 8000
-```
-
-FastAPI OpenAPI documentation will be available at `http://localhost:8000/docs`.
-
----
-
-## 6. Running the Frontend
-
-The interactive user interface is built with Next.js:
-
-```bash
-cd web
-npm run dev
-```
-
-Visit `http://localhost:3000` to interact with the advisory portal.
-
-For production builds:
-```bash
-npm run build
+# Optional LLM Explanation Layer (leave blank for deterministic mode)
+XAI_API_KEY=
+XAI_MODEL=grok-4.6
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+LLM_PROVIDER_ORDER=xai,groq,gemini
+LLM_TIMEOUT_SECONDS=20
+LLM_RETRIES=2
 ```
 
 ---
 
-## 7. Running Tests
+## 📚 Technical Documentation Suite
 
-Run the complete test suite without requiring paid API keys or live external connections:
+Comprehensive technical documentation is organized in the [`docs/`](docs/) directory:
 
-```bash
-# Complete pytest suite (68 tests across unit, integration, and E2E scenarios)
-python -m pytest -v
-
-# Verification script
-python scripts/verify_product.py
-
-# Syntax and compilation check
-python -m compileall -q .
-```
-
----
-
-## 8. Free & Offline Demo Mode
-
-AgriMind runs completely offline without requiring any paid subscriptions:
-- **No LLM API keys needed**: When LLM keys are absent, the system produces structured deterministic explanations without failing or compromising safety.
-- **Weather API failures / offline**: If Open-Meteo is unreachable or coordinates are invalid, the weather agent transitions to an explicit safe state (`UNAVAILABLE`, `TIMEOUT`, `INVALID`) and sets a neutral 0.50 score, preventing false fertilizer recommendations.
-- **Market API offline**: If Agmarknet is unreachable or unconfigured, the system explicitly labels the state as `DEMO_DATA` or `UNAVAILABLE` and emits a neutral hold signal, preventing fake data from being presented as live mandi prices.
+- [**Project Overview**](docs/PROJECT_OVERVIEW.md) — Motivation, target personas, functional requirements, and current status.
+- [**System Architecture**](docs/ARCHITECTURE.md) — Detailed component design, data flows, and subsystem specifications.
+- [**System Workflow**](docs/SYSTEM_WORKFLOW.md) — End-to-end execution sequence, Mermaid flowcharts, and 7-phase processing.
+- [**Specialist Agents**](docs/AGENTS.md) — Deep-dive into Weather, Soil, Disease, Market, Advisory, and LLM Explainer agents.
+- [**AI Orchestration**](docs/AI_ORCHESTRATION.md) — LangGraph state machine, Stage-1 Safety Guards, P1–P5 conflict resolution, and DSS formulas.
+- [**Database Schema**](docs/DATABASE.md) — Entity-relationship diagrams, table schemas (`runs`, `agent_logs`, `decisions`, `conflicts`, `feedback`).
+- [**API Documentation**](docs/API_DOCUMENTATION.md) — REST endpoints reference with Pydantic request/response schemas and examples.
+- [**Observability & Traceability**](docs/OBSERVABILITY.md) — 9-step execution trace tracking, latency accounting, and farmer adoption logging.
+- [**Installation Guide**](docs/INSTALLATION.md) — Complete prerequisites and step-by-step setup instructions.
+- [**Configuration Reference**](docs/CONFIGURATION.md) — Full environment variable reference and security policies.
+- [**Testing & Verification**](docs/TESTING.md) — Automated test suite breakdown (130 tests), product verification, and test logs.
+- [**Deployment Guide**](docs/DEPLOYMENT.md) — Local production setup, Docker containerization, and PostgreSQL migration.
+- [**Troubleshooting Guide**](docs/TROUBLESHOOTING.md) — Fast solutions for port conflicts, missing packages, and API validation errors.
+- [**Project Structure**](docs/PROJECT_STRUCTURE.md) — Complete file-by-file directory map of the codebase.
 
 ---
 
-## 9. Advisory Workflow & Safety Policies
+## 🛡️ Project Health & Audit
 
-Advisory decisions follow a strict, non-negotiable 2-stage hierarchy:
-
-### Stage 1: Deterministic Safety Gates (Rules)
-1. **P1 Weather Safety**: Rainfall probability > 70% triggers `DELAY` to prevent fertilizer runoff and chemical leaching.
-2. **P2 Disease Confidence Gate**: Disease predictions with confidence < 0.60 are marked non-actionable; advisory continues with general crop health.
-3. **P3 Disease Urgency**: Actionable disease with high severity forces `DISEASE_MANAGEMENT_FIRST`.
-4. **P4 Nutrient Requirement**: Severe soil nutrient deficiency (> 60%) triggers `apply_fertilizer`.
-5. **P5 Market Condition**: Market economic signal acts strictly as a Stage-2 tie-breaker and cannot override agronomic safety.
-
-### Stage 2: Multi-Criteria Decision Scoring
-When multiple actions are plausible, actions are scored on agronomic suitability, weather compatibility, and economic indicators. The highest scoring valid action is selected.
+For complete details on repository health, cleanup actions performed, test verification results, and startup benchmarks, refer to:
+👉 [**PROJECT_AUDIT.md**](PROJECT_AUDIT.md)
 
 ---
 
-## 10. Observability & Run-Level Traceability
-
-Every advisory execution is assigned a unique `run_id` (UUIDv4) and recorded across five relational tables:
-- `runs`: Top-level execution trace (run ID, crop, growth stage, soil type, recommendation, confidence, latencies, LLM token counts, weather/market/disease statuses).
-- `agent_logs`: Input, output, status, and latency of every individual agent.
-- `decisions`: Deterministic rule evaluations, candidates, and scoring breakdowns.
-- `conflicts`: Detected multi-agent conflicts, resolution policies, and chosen winners.
-- `feedback`: End-user field accuracy ratings and notes.
-
-### Run Trace Endpoint
-Inspect the complete 9-point execution trail for any advisory run:
-```bash
-curl http://localhost:8000/api/runs/{run_id}
-```
-Returns:
-1. `run_id` and timestamp
-2. `agents_executed` (statuses, latencies)
-3. `agent_outputs` summary
-4. `data_source_availability` (weather, market statuses)
-5. `conflicts` and resolutions
-6. `decision_rule` and score breakdown
-7. `llm_used` (provider, status, token usage)
-8. `final_recommendation` and confidence
-9. `uncertainty` notes and warnings
-
----
-
-## 11. Disease Pipeline
-
-The disease model utilizes a MobileNetV3-Large neural network trained on the PlantVillage dataset:
-- **Mode A (Image Provided)**: Validates image (JPEG/PNG, <= 10MB), runs inference, normalizes class labels (e.g., `Tomato___Early_blight` → Tomato Early Blight), applies confidence thresholding (0.60 gate).
-- **Mode B (Disease Override)**: Respects user-specified diagnosis without running redundant model inference.
-- **Mode C (Data Only)**: Fully operational when no image is provided; marks disease state as unknown/non-actionable without crashing.
-- **Severity Qualification**: PlantVillage labels lack severity annotations; all disease severity metrics are explicitly identified as heuristics.
-
----
-
-## 12. RAG & ICAR Evidence Grounding
-
-AgriMind ingests official ICAR Kharif Agro-Advisories (2025):
-- Preserves exact source document and page number boundaries.
-- Contextual query generation blends crop, growth stage, soil, and diagnosed condition.
-- TF-IDF candidate generation with metadata-aware reranking ensures that only relevant recommendations are retrieved.
-- RAG evidence provides scientific grounding for explanations and cannot override safety gates.
-
----
-
-## 13. Soil Calibration & Provenance
-
-Crop nutrient reference targets (Tomato, Potato, Rice, Maize, etc.) and soil texture adjustments (Sandy, Clay, Loam, Alluvial) are explicitly categorized:
-- `AUTHORITATIVE`: Direct, verified recommendations.
-- `HEURISTIC`: Calibrated engineering baseline heuristics.
-- `FALLBACK`: Generic crop nutritional benchmarks.
-
-`get_provenance(crop, soil_type)` returns full metadata.
-
-> **Field Application Note**: Actual field fertilizer application should always be cross-referenced with State Agricultural University (SAU) Package of Practices, district Krishi Vigyan Kendra (KVK) guidance, or the farmer's Soil Health Card.
-
----
-
-## 14. Market & Weather Data Limitations
-
-- **Weather**: Integrated with Open-Meteo. Does not fabricate forecast data when offline or unavailable. Missing precipitation data is explicitly flagged rather than treated as zero rainfall.
-- **Market (Agmarknet)**: If the Agmarknet API is unconfigured or returns an empty result, market status is marked as `DEMO_DATA` or `UNAVAILABLE`. Prices are never fabricated.
-
----
-
-## 15. Deployment & Production Notes
-
-- **Docker Support**: Preconfigured `Dockerfile` and `docker-compose.yml` for containerized backend and database deployment.
-- **Database Migrations**: Additive SQLite/PostgreSQL schema initialization via `init_db()` preserves all existing rows and tables across updates.
-- **Security**: CORS is restricted to local/whitelisted origins, uploads are validated for file size (10MB limit), magic byte signatures, and path traversal vulnerabilities.
-- **Clean API Contract**:
-  - `GET /health`: System health and version status.
-  - `POST /api/advisory`: JSON advisory calculation.
-  - `POST /api/advisory/upload`: Multipart form advisory with leaf image.
-  - `GET /api/runs/{run_id}`: Comprehensive execution audit trail.
-  - `POST /api/feedback`: Farmer feedback and rating submission.
+## 👥 License & Credits
+- **Institutional Advisory Corpus:** Indian Council of Agricultural Research (ICAR), *Kharif Agro-Advisories for Farmers 2025*.
+- **Plant Disease Taxonomy:** PlantVillage Dataset (Penn State University).
+- **Meteorological Data:** Open-Meteo Meteorological Service.

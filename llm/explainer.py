@@ -44,22 +44,46 @@ class LLMExplanationResult:
 
 def deterministic_explanation(state, evidence=None) -> str:
     parts = [f"Recommendation: {state.final_recommendation.replace('_', ' ')}."]
-    parts.append(f"Rainfall risk is {state.weather.rainfall_risk:.2f}.")
-    parts.append(
-        f"Overall soil deficiency is {state.soil.overall_deficiency:.2f}, "
-        f"with {state.soil.priority_nutrient} as the priority nutrient."
-    )
-    if state.disease.predicted_class:
+    from agents.weather_agent import get_weather_risk_explanation, get_weather_risk_level
+    w_risk = getattr(state.weather, "rainfall_risk", 0.0)
+    w_level = getattr(state.weather, "risk_level", None) or get_weather_risk_level(w_risk)
+    w_exp = getattr(state.weather, "risk_explanation", None) or get_weather_risk_explanation(w_risk, w_level)
+    parts.append(f"Rainfall risk: {w_risk:.2f} ({w_level}). {w_exp}".strip())
+    if getattr(state.soil, "npk_available", False) and state.soil.overall_deficiency is not None:
         parts.append(
-            f"Disease signal: {state.disease.predicted_class} at "
-            f"{state.disease.confidence:.2f} confidence."
+            f"Overall soil deficiency is {state.soil.overall_deficiency:.2f}, "
+            f"with {state.soil.priority_nutrient or 'balanced'} as the priority nutrient."
         )
-        if not state.disease.actionable:
+    else:
+        parts.append(
+            "Soil nutrient assessment: Unavailable. NPK measurements were not provided, "
+            "so nutrient deficiency was not calculated."
+        )
+    if state.disease.predicted_class:
+        dis_conf_pct = round(state.disease.confidence * 100)
+        parts.append(
+            f"Disease signal: {state.disease.predicted_class} at {dis_conf_pct}% confidence."
+        )
+        if getattr(state.disease, "crop_mismatch", False):
+            selected_c = (getattr(getattr(state, "crop", None), "crop", "") or "selected crop").capitalize()
+            detected_c = (getattr(state.disease, "crop_detected", "") or "Tomato").capitalize()
             parts.append(
-                "The disease signal is below the 0.60 confidence gate, so it "
-                "is not used as an actionable disease decision."
+                f"Disease confidence: {dis_conf_pct}%. Confidence gate: PASSED. Crop match: FAILED. "
+                f"Disease action: BLOCKED. Reason: Predicted crop is {detected_c} but selected crop is {selected_c}."
             )
-    parts.append(f"Market signal: {state.market.signal}.")
+        elif not state.disease.actionable:
+            parts.append(
+                f"Disease confidence: {dis_conf_pct}%. Confidence gate: FAILED. Crop match: PASSED. "
+                f"Disease action: BLOCKED. Reason: The disease signal is below the 0.60 confidence gate."
+            )
+    m_sig = getattr(state.market, "signal", "hold")
+    if m_sig == "sell":
+        parts.append(
+            f"Market signal indicates favorable selling window ('sell'), but agronomic decision "
+            f"({state.final_recommendation.replace('_', ' ')}) remains authoritative."
+        )
+    else:
+        parts.append(f"Market signal: {m_sig}.")
     if evidence:
         parts.append(f"{len(evidence)} source-grounded agronomy record(s) were retrieved for context.")
     return " ".join(parts)
@@ -288,10 +312,10 @@ def explain_with_metadata(state, evidence=None) -> LLMExplanationResult:
         text=text,
         provider="deterministic",
         model="rule-based-template",
-        status="fallback",
+        status="fallback" if attempted else "deterministic",
         latency_ms=0.0,
         fallback_used=attempted,
-        error="; ".join(errors) if errors else "No LLM API key configured",
+        error="; ".join(errors) if errors else None,
     )
     _log(state.run_id, result)
     return result
