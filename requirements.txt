@@ -19,6 +19,10 @@ numpy>=2.0
 # Optional RAG
 # chromadb
 
+# LLM Explainer
+openai>=1.50.0
+
 # Testing
 pytest>=8.0
 httpx>=0.27
+

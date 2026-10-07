@@ -290,6 +290,7 @@ def test_e2e_scenario_17_demo_mode_full_offline():
 
 def test_e2e_scenario_18_no_external_api_keys(monkeypatch):
     """Scenario 18: System produces deterministic explanation when no LLM keys exist."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("XAI_API_KEY", raising=False)
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)

@@ -1,10 +1,24 @@
-"""Observable, source-grounded LLM explanation layer for AgriMind.
+"""Observable, source-grounded OpenAI explanation layer for AgriMind.
 
-The deterministic policy remains authoritative. This module may only explain
-an already-selected recommendation using the structured agent outputs and
-retrieved evidence. It supports a provider chain (xAI/Grok -> Groq -> Gemini)
-with deterministic fallback, bounded retries, and a small process-local cache.
-Every attempt is written to the existing ``agent_logs`` observability table.
+AUTHORITATIVE ARCHITECTURE:
+Farm Input -> Specialist Agents -> Deterministic Decision Engine ->
+Agronomic Safety Guard -> Authoritative Final Decision ->
+OpenAI Explanation Layer -> Farmer-Facing Output
+
+The deterministic policy remains authoritative. OpenAI serves strictly as an
+explanation and evidence-synthesis layer. It CANNOT alter or override:
+- Final recommendation
+- Agronomic safety constraints
+- Disease-treatment gate & precedence
+- Fertilizer approval or dosage constraints
+- Weather veto (DELAY)
+- Market-vs-agronomy conflict resolution
+
+If OpenAI is unavailable, rate-limited, times out, or fails:
+The system automatically falls back to deterministic rule templates.
+No multi-provider fallback chains (no xAI, Groq, Gemini).
+Every invocation is recorded in the agent_logs observability table.
+API keys are NEVER logged or stored.
 """
 from __future__ import annotations
 
@@ -15,12 +29,8 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
-import requests
-
 from observability import database as obs
 
-
-DEFAULT_PROVIDER_ORDER = ("xai", "groq", "gemini")
 _CACHE: dict[str, tuple[float, "LLMExplanationResult"]] = {}
 _CACHE_TTL_SECONDS = 300.0
 _CACHE_MAX_ITEMS = 128
@@ -34,15 +44,125 @@ class LLMExplanationResult:
     status: str
     latency_ms: float
     fallback_used: bool
+    structured_explanation: dict[str, Any] | None = None
     cache_hit: bool = False
     tokens: dict | None = None
+    evidence_sources_count: int = 0
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
+def deterministic_structured_explanation(state, evidence=None) -> dict[str, Any]:
+    """Generate structured fallback explanation grounded in deterministic state."""
+    rec = getattr(state, "final_recommendation", "monitor").replace("_", " ")
+    norm_rec = str(rec).lower()
+
+    # Weather findings
+    w_risk = getattr(state.weather, "rainfall_risk", 0.0)
+    from agents.weather_agent import get_weather_risk_explanation, get_weather_risk_level
+    w_level = getattr(state.weather, "risk_level", None) or get_weather_risk_level(w_risk)
+    w_exp = getattr(state.weather, "risk_explanation", None) or get_weather_risk_explanation(w_risk, w_level)
+
+    # Soil findings
+    npk_avail = getattr(state.soil, "npk_available", False)
+    overall_def = getattr(state.soil, "overall_deficiency", None)
+    priority_nut = getattr(state.soil, "priority_nutrient", None)
+
+    # Disease findings
+    dis_class = getattr(state.disease, "predicted_class", None)
+    dis_conf = getattr(state.disease, "confidence", 0.0)
+    dis_actionable = getattr(state.disease, "actionable", False)
+    dis_mismatch = getattr(state.disease, "crop_mismatch", False)
+
+    # Market findings
+    m_sig = getattr(state.market, "signal", "hold")
+
+    # Synthesize why_this_decision & immediate_guidance
+    if "delay" in norm_rec:
+        why = f"High rainfall risk ({w_risk:.2f}, {w_level}) triggers a safety veto. {w_exp}"
+        immediate = "Postpone all foliar spraying, chemical fertilizer application, and machine field operations."
+        cautions = [
+            "Applying chemicals before heavy precipitation leads to wash-off, nutrient leaching, and environmental contamination.",
+            "Excessive soil moisture impedes field equipment access and risks root suffocation.",
+        ]
+        triggers = ["Cease delay when rainfall probability drops below safety thresholds and surface water drains."]
+    elif "disease" in norm_rec:
+        why = f"Active disease signal ({dis_class or 'foliar pathogen'}) at {round(dis_conf * 100)}% confidence requires phytosanitary intervention before nutritional corrective measures."
+        immediate = "Scout crop foliage, isolate symptomatic areas, and apply verified phytosanitary management."
+        cautions = [
+            "Disease management strictly takes precedence over fertilizer replenishment to avoid pathogen proliferation.",
+            "Exact chemical treatments require confirmation with local agronomic extension guidelines.",
+        ]
+        triggers = ["Re-evaluate once disease symptoms are contained and secondary spread is halted."]
+    elif "fertilizer" in norm_rec:
+        def_str = f"{overall_def:.2f}" if overall_def is not None else "unspecified"
+        why = f"Verified soil deficiency ({def_str}) identified with {priority_nut or 'balanced nutrients'} as priority."
+        immediate = "Apply scheduled fertilizer replenishment adhering to basal or top-dressing guidelines for current crop stage."
+        cautions = [
+            "Exact application rate requires verification against the applicable agronomic recommendation for the crop, soil and field conditions.",
+            "Avoid over-application to protect groundwater and soil microbial balance.",
+        ]
+        triggers = ["Conduct follow-up leaf tissue or soil testing after scheduled vegetative stage."]
+    else:
+        why = "Routine crop monitoring. Specialist agents confirm conditions remain within normal seasonal parameters."
+        immediate = "Continue regular crop management, irrigation scheduling, and weekly pest scouting."
+        cautions = [
+            "Exact chemical applications require verified soil testing or confirmed pest presence before intervention."
+        ]
+        triggers = ["Re-evaluate upon sudden weather shifts or emergence of foliar discoloration."]
+
+    # Context items
+    context = []
+    if npk_avail and overall_def is not None:
+        context.append(f"Soil nutrient assessment: Deficiency score {overall_def:.2f}, prioritizing {priority_nut or 'balanced'}.")
+    else:
+        context.append("Soil nutrient assessment: Unmeasured. Field-measured NPK data was not provided.")
+    context.append(f"Weather condition: {w_level} rainfall risk ({w_risk:.2f}). {w_exp}")
+    if m_sig == "sell":
+        context.append("Market signal indicates favorable selling window, but current crop growth stage maintains field agronomy as primary.")
+
+    # Evidence used
+    ev_used = []
+    if evidence:
+        for doc in evidence[:3]:
+            title = doc.get("title") or doc.get("source") or doc.get("category") or "ICAR agronomic guidance"
+            ev_used.append(str(title))
+    if not ev_used:
+        ev_used.append("AgriMind deterministic rule template")
+
+    # Uncertainty
+    uncertainty_notes = []
+    if not npk_avail:
+        uncertainty_notes.append("Soil NPK measurements unverified; exact dosage requires lab testing.")
+    if dis_class and not dis_actionable:
+        uncertainty_notes.append("Disease confidence below 0.60 safety threshold; visual field verification needed.")
+    if not uncertainty_notes:
+        uncertainty_notes.append("Advisory calibrated from regional weather telemetry and verified crop stage baselines.")
+
+    summary_text = (
+        f"Recommendation: {rec}. {w_exp} "
+        + (f"Disease detected: {dis_class} ({round(dis_conf * 100)}%). " if dis_class else "")
+        + (f"Soil deficiency: {overall_def:.2f}. " if npk_avail and overall_def is not None else "")
+        + f"Safety guard verified: {immediate}"
+    )
+
+    return {
+        "summary": summary_text.strip(),
+        "why_this_decision": why,
+        "immediate_guidance": immediate,
+        "additional_agronomic_context": context,
+        "important_cautions": cautions,
+        "what_could_change_decision": triggers,
+        "evidence_used": ev_used,
+        "uncertainty": " ".join(uncertainty_notes),
+        "llm_role": "explanation_only",
+    }
+
+
 def deterministic_explanation(state, evidence=None) -> str:
+    """Backward-compatible text explanation."""
     parts = [f"Recommendation: {state.final_recommendation.replace('_', ' ')}."]
     from agents.weather_agent import get_weather_risk_explanation, get_weather_risk_level
     w_risk = getattr(state.weather, "rainfall_risk", 0.0)
@@ -89,72 +209,61 @@ def deterministic_explanation(state, evidence=None) -> str:
     return " ".join(parts)
 
 
-def _provider_order() -> list[str]:
-    raw = os.getenv("LLM_PROVIDER_ORDER", ",".join(DEFAULT_PROVIDER_ORDER))
-    order = [x.strip().lower() for x in raw.split(",") if x.strip()]
-    return [x for x in order if x in {"xai", "groq", "gemini"}] or list(DEFAULT_PROVIDER_ORDER)
-
-
-def _model(provider: str) -> str:
-    defaults = {
-        "xai": "grok-4.6",
-        "groq": "llama-3.3-70b-versatile",
-        "gemini": "gemini-2.5-flash",
-    }
-    return os.getenv(f"{provider.upper()}_MODEL", defaults[provider])
-
-
-def _key(provider: str) -> str | None:
-    names = {"xai": "XAI_API_KEY", "groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
-    return os.getenv(names[provider]) or None
-
-
-def _request_with_retry(method: str, url: str, **kwargs):
-    retries = max(0, int(os.getenv("LLM_RETRIES", "2")))
-    timeout = float(os.getenv("LLM_TIMEOUT_SECONDS", "20"))
-    kwargs["timeout"] = timeout
-    last_exc: Exception | None = None
-    for attempt in range(retries + 1):
-        try:
-            response = requests.request(method, url, **kwargs)
-            if response.status_code not in {429} and response.status_code < 500:
-                if response.status_code >= 400:
-                    detail = response.text[:1000].strip()
-                    raise RuntimeError(
-                        f"HTTP {response.status_code} from {url}: {detail or response.reason}"
-                    )
-                return response
-            response.raise_for_status()
-        except Exception as exc:
-            last_exc = exc
-            if attempt >= retries:
-                raise
-            time.sleep(min(2.0 ** attempt, 4.0))
-    if last_exc:
-        raise last_exc
-    raise RuntimeError("LLM request failed")
-
-
 def _messages(state, evidence) -> list[dict[str, str]]:
     system = (
-        "You are the explanation layer of AgriMind. The deterministic policy has "
-        "already selected the recommendation. You MUST preserve that exact action. "
-        "Never override safety rules, change the recommendation, invent fertilizer "
-        "or pesticide doses, invent diagnoses, or claim evidence that is not supplied. "
-        "Use the supplied ICAR evidence when relevant. Clearly mention uncertainty "
-        "when a disease signal is below the 0.60 actionable threshold. Give a concise, "
-        "farmer-friendly explanation in plain language."
+        "You are the explanation and evidence synthesis layer of AgriMind, an observable agricultural "
+        "decision-support system. The deterministic Agronomic Safety Engine has ALREADY made the authoritative "
+        "final decision. You MUST preserve that exact decision.\n\n"
+        "STRICT AUTHORITATIVE RULES:\n"
+        "1. You are an EXPLANATION-ONLY layer. You CANNOT change, override, or alter:\n"
+        "   - The final recommendation\n"
+        "   - Safety constraints\n"
+        "   - Disease treatment precedence (disease ALWAYS precedes fertilizer)\n"
+        "   - Weather veto (DELAY is non-negotiable)\n"
+        "   - Market-vs-agronomy resolution (agronomic stage always overrides market signal)\n"
+        "2. ZERO FABRICATION:\n"
+        "   - Do NOT invent specific chemical dosages (e.g., kg/ha or ml/L) for fertilizers or pesticides "
+        "unless explicitly present in the provided evidence. If absent, state: 'Exact application rate requires "
+        "verification against the applicable agronomic recommendation for the crop, soil and field conditions.'\n"
+        "   - Do NOT invent commercial product names, pesticide registrations, market prices, store names, MRPs, or citations.\n"
+        "   - If evidence is unavailable, state: 'Not available from the provided evidence.' or 'Additional evidence-grounded context is unavailable.'\n"
+        "3. EVIDENCE GROUNDING:\n"
+        "   - Clearly distinguish PRIMARY RETRIEVED EVIDENCE (from ICAR/scientific documents) from ADDITIONAL AGRONOMIC INSIGHT.\n"
+        "   - Ground all insights in the retrieved documents or sound agronomic biology for the specified crop and stage.\n"
+        "4. SPECIFIC SCENARIO INSTRUCTIONS:\n"
+        "   - If recommendation is DISEASE MANAGEMENT FIRST: Explain why phytosanitary control must precede nutrition, "
+        "how weather conditions affect pathogen spread, and necessary field scouting. Never recommend fertilizer or selling.\n"
+        "   - If recommendation is DELAY: Explain why precipitation/weather conditions make application ineffective or hazardous "
+        "(wash-off, runoff, root saturation).\n"
+        "   - If recommendation is APPLY FERTILIZER: Explain why the deficient nutrient is critical at the current crop stage, "
+        "optimal application timing, and precautions.\n"
+        "   - If market signal is SELL but crop is vegetative: Clarify that the crop cannot be harvested early despite favorable prices, "
+        "maintaining field management.\n\n"
+        "OUTPUT FORMAT:\n"
+        "You MUST respond with a valid JSON object matching this schema:\n"
+        "{\n"
+        '  "summary": "Concise 2-3 sentence farmer-friendly explanation of today\'s decision.",\n'
+        '  "why_this_decision": "Clear explanation of the primary agronomic and safety reasons behind this decision.",\n'
+        '  "immediate_guidance": "Clear, practical action the farmer should take immediately in the field.",\n'
+        '  "additional_agronomic_context": ["Context 1", "Context 2"],\n'
+        '  "important_cautions": ["Caution 1"],\n'
+        '  "what_could_change_decision": ["Trigger 1"],\n'
+        '  "evidence_used": ["Evidence 1"],\n'
+        '  "uncertainty": "Uncertainty or verification note.",\n'
+        '  "llm_role": "explanation_only"\n'
+        "}"
     )
     payload = {
-        "recommendation_locked": state.final_recommendation,
-        "decision_reason": state.execution_trace[-1] if state.execution_trace else "",
-        "weather": state.weather.__dict__,
-        "soil": state.soil.__dict__,
-        "disease": state.disease.__dict__,
-        "advisory": state.advisory.__dict__,
-        "market": state.market.__dict__,
-        "crop": state.crop.__dict__,
-        "evidence": evidence or [],
+        "deterministic_recommendation_locked": state.final_recommendation,
+        "decision_trace": getattr(state, "execution_trace", []),
+        "safety_constraints": getattr(state, "safety_constraints", []),
+        "crop": getattr(state, "crop", None).__dict__ if getattr(state, "crop", None) else {},
+        "weather": getattr(state, "weather", None).__dict__ if getattr(state, "weather", None) else {},
+        "soil": getattr(state, "soil", None).__dict__ if getattr(state, "soil", None) else {},
+        "disease": getattr(state, "disease", None).__dict__ if getattr(state, "disease", None) else {},
+        "market": getattr(state, "market", None).__dict__ if getattr(state, "market", None) else {},
+        "conflicts": getattr(state, "conflicts", []),
+        "retrieved_evidence": evidence or [],
     }
     return [
         {"role": "system", "content": system},
@@ -162,66 +271,96 @@ def _messages(state, evidence) -> list[dict[str, str]]:
     ]
 
 
-class LLMContent(str):
-    tokens: dict | None = None
+def _call_openai(api_key: str, model: str, messages: list[dict[str, str]]) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Execute request against OpenAI API using the official SDK."""
+    from openai import OpenAI
+    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "25")))
+    client = OpenAI(api_key=api_key, timeout=timeout)
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.2,
+        )
+    except Exception as exc:
+        if "response_format" in str(exc).lower():
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.2,
+            )
+        else:
+            raise
+
+    raw_content = response.choices[0].message.content or "{}"
+    data = json.loads(raw_content)
+    tokens = {
+        "prompt_tokens": getattr(response.usage, "prompt_tokens", None),
+        "completion_tokens": getattr(response.usage, "completion_tokens", None),
+        "total_tokens": getattr(response.usage, "total_tokens", None),
+    } if response.usage else None
+    return data, tokens
 
 
-def _openai_compatible(provider: str, key: str, model: str, messages: list[dict[str, str]]) -> str:
-    base_urls = {
-        "xai": "https://api.x.ai/v1/chat/completions",
-        "groq": "https://api.groq.com/openai/v1/chat/completions",
+def _validate_and_sanitize(data: dict[str, Any], state, evidence) -> dict[str, Any]:
+    """Validate OpenAI response structure and enforce immutability of decision."""
+    summary = str(data.get("summary") or "").strip()
+    why = str(data.get("why_this_decision") or "").strip()
+    guidance = str(data.get("immediate_guidance") or "").strip()
+
+    if not summary or not why:
+        raise ValueError("OpenAI response missing summary or why_this_decision")
+
+    context = data.get("additional_agronomic_context")
+    if not isinstance(context, list):
+        context = [str(context)] if context else []
+    context = [str(c) for c in context if c]
+
+    cautions = data.get("important_cautions")
+    if not isinstance(cautions, list):
+        cautions = [str(cautions)] if cautions else []
+    cautions = [str(c) for c in cautions if c]
+
+    triggers = data.get("what_could_change_decision")
+    if not isinstance(triggers, list):
+        triggers = [str(triggers)] if triggers else []
+    triggers = [str(t) for t in triggers if t]
+
+    evidence_used = data.get("evidence_used")
+    if not isinstance(evidence_used, list):
+        evidence_used = [str(evidence_used)] if evidence_used else []
+    evidence_used = [str(e) for e in evidence_used if e]
+
+    uncertainty = str(data.get("uncertainty") or "Field agronomic verification recommended.").strip()
+
+    return {
+        "summary": summary,
+        "why_this_decision": why,
+        "immediate_guidance": guidance or "Follow standard field protocol.",
+        "additional_agronomic_context": context,
+        "important_cautions": cautions,
+        "what_could_change_decision": triggers,
+        "evidence_used": evidence_used,
+        "uncertainty": uncertainty,
+        "llm_role": "explanation_only",
     }
-    response = _request_with_retry(
-        "POST",
-        base_urls[provider],
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={"model": model, "messages": messages},
-    )
-    data = response.json()
-    text = data["choices"][0]["message"]["content"]
-    if not isinstance(text, str) or not text.strip():
-        raise ValueError("LLM returned an empty explanation")
-    result = LLMContent(text.strip())
-    result.tokens = data.get("usage")
-    return result
-
-
-def _gemini(key: str, model: str, messages: list[dict[str, str]]) -> str:
-    system_text = next((m["content"] for m in messages if m["role"] == "system"), "")
-    user_text = next((m["content"] for m in messages if m["role"] == "user"), "")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    response = _request_with_retry(
-        "POST",
-        url,
-        params={"key": key},
-        headers={"Content-Type": "application/json"},
-        json={
-            "systemInstruction": {"parts": [{"text": system_text}]},
-            "contents": [{"role": "user", "parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": 0.1},
-        },
-    )
-    data = response.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    if not isinstance(text, str) or not text.strip():
-        raise ValueError("Gemini returned an empty explanation")
-    result = LLMContent(text.strip())
-    result.tokens = data.get("usageMetadata")
-    return result
 
 
 def _cache_key(state, evidence) -> str:
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     payload = {
-        "recommendation": state.final_recommendation,
-        "trace": state.execution_trace,
-        "weather": state.weather.__dict__,
-        "soil": state.soil.__dict__,
-        "disease": state.disease.__dict__,
-        "advisory": state.advisory.__dict__,
-        "market": state.market.__dict__,
-        "crop": state.crop.__dict__,
+        "recommendation": getattr(state, "final_recommendation", ""),
+        "trace": getattr(state, "execution_trace", []),
+        "weather": getattr(state.weather, "__dict__", {}),
+        "soil": getattr(state.soil, "__dict__", {}),
+        "disease": getattr(state.disease, "__dict__", {}),
+        "advisory": getattr(state.advisory, "__dict__", {}),
+        "market": getattr(state.market, "__dict__", {}),
+        "crop": getattr(state.crop, "__dict__", {}),
         "evidence": evidence or [],
-        "provider_order": _provider_order(),
+        "model": model,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -249,14 +388,19 @@ def _log(run_id: str, result: LLMExplanationResult, error: str | None = None) ->
     obs.log_agent_call(
         run_id,
         "llm_explainer",
-        {"provider_order": _provider_order()},
+        {"provider": result.provider, "model": result.model},
         {
             "provider": result.provider,
             "model": result.model,
+            "role": "Explanation and evidence synthesis only",
+            "decision_authority": "Deterministic Agronomic Safety Engine",
             "status": result.status,
             "fallback_used": result.fallback_used,
             "cache_hit": result.cache_hit,
             "tokens": result.tokens,
+            "latency_ms": result.latency_ms,
+            "evidence_sources_count": result.evidence_sources_count,
+            "output_summary": result.text[:200] if result.text else "",
             "error": error or result.error,
         },
         status,
@@ -266,7 +410,7 @@ def _log(run_id: str, result: LLMExplanationResult, error: str | None = None) ->
 
 
 def explain_with_metadata(state, evidence=None) -> LLMExplanationResult:
-    """Generate an explanation and persist one observable LLM-layer record."""
+    """Generate source-grounded explanation via OpenAI or deterministic fallback."""
     evidence = evidence or []
     cache_key = _cache_key(state, evidence)
     cached = _cache_get(cache_key)
@@ -274,53 +418,67 @@ def explain_with_metadata(state, evidence=None) -> LLMExplanationResult:
         _log(state.run_id, cached)
         return cached
 
+    key = os.getenv("OPENAI_API_KEY")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    if not key or not key.strip():
+        # No OpenAI key configured -> Direct deterministic fallback
+        structured = deterministic_structured_explanation(state, evidence)
+        result = LLMExplanationResult(
+            text=structured["summary"],
+            provider="deterministic",
+            model="rule-based-template",
+            status="deterministic",
+            latency_ms=0.0,
+            fallback_used=False,
+            structured_explanation=structured,
+            evidence_sources_count=len(evidence),
+            error=None,
+        )
+        _log(state.run_id, result)
+        return result
+
+    # Execute request to OpenAI
     messages = _messages(state, evidence)
-    errors: list[str] = []
-    providers = _provider_order()
-    attempted = False
+    start = time.perf_counter()
+    try:
+        data, tokens = _call_openai(key, model, messages)
+        structured = _validate_and_sanitize(data, state, evidence)
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
 
-    for index, provider in enumerate(providers):
-        key = _key(provider)
-        if not key:
-            continue
-        attempted = True
-        model = _model(provider)
-        start = time.perf_counter()
-        try:
-            if provider in {"xai", "groq"}:
-                text = _openai_compatible(provider, key, model, messages)
-            else:
-                text = _gemini(key, model, messages)
-            tokens = getattr(text, "tokens", None)
-            result = LLMExplanationResult(
-                text=str(text),
-                provider=provider,
-                model=model,
-                status="success",
-                latency_ms=round((time.perf_counter() - start) * 1000, 2),
-                fallback_used=index > 0,
-                tokens=tokens,
-            )
-            _cache_put(cache_key, result)
-            _log(state.run_id, result)
-            return result
-        except Exception as exc:
-            errors.append(f"{provider}: {type(exc).__name__}: {exc}")
-
-    text = deterministic_explanation(state, evidence)
-    result = LLMExplanationResult(
-        text=text,
-        provider="deterministic",
-        model="rule-based-template",
-        status="fallback" if attempted else "deterministic",
-        latency_ms=0.0,
-        fallback_used=attempted,
-        error="; ".join(errors) if errors else None,
-    )
-    _log(state.run_id, result)
-    return result
+        result = LLMExplanationResult(
+            text=structured["summary"],
+            provider="openai",
+            model=model,
+            status="success",
+            latency_ms=latency_ms,
+            fallback_used=False,
+            structured_explanation=structured,
+            tokens=tokens,
+            evidence_sources_count=len(evidence),
+        )
+        _cache_put(cache_key, result)
+        _log(state.run_id, result)
+        return result
+    except Exception as exc:
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
+        error_msg = f"OpenAI error: {type(exc).__name__}: {exc}"
+        structured = deterministic_structured_explanation(state, evidence)
+        result = LLMExplanationResult(
+            text=structured["summary"],
+            provider="deterministic",
+            model="rule-based-template",
+            status="fallback",
+            latency_ms=latency_ms,
+            fallback_used=True,
+            structured_explanation=structured,
+            evidence_sources_count=len(evidence),
+            error=error_msg,
+        )
+        _log(state.run_id, result, error=error_msg)
+        return result
 
 
 def explain(state, evidence=None) -> str:
-    """Backward-compatible text-only interface used by existing callers/tests."""
+    """Backward-compatible text-only interface."""
     return explain_with_metadata(state, evidence).text

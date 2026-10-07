@@ -17,7 +17,7 @@ load_dotenv()
 
 from data_sources.crops import CATEGORIES, STAGE_REGISTRY, get_crop_registry, get_crops_by_category, normalize_crop
 from data_sources.geocoding import resolve_location, search_locations
-from llm.explainer import explain
+from llm.explainer import explain, explain_with_metadata
 from observability import database as obs
 from orchestrator.graph import run_advisory
 
@@ -108,7 +108,10 @@ def _serialize(state):
     except Exception:
         evidence = []
 
-    explanation = explain(state, evidence)
+    llm_result = explain_with_metadata(state, evidence)
+    explanation = llm_result.text
+    llm_structured = llm_result.structured_explanation
+
     trail = obs.get_run_trail(state.run_id)
     llm_logs = [x for x in trail.get("agent_logs", []) if x.get("agent") == "llm_explainer"]
     llm_metadata = llm_logs[-1].get("output", {}) if llm_logs else {}
@@ -121,8 +124,8 @@ def _serialize(state):
             weather_status=getattr(state.weather, "status", "AVAILABLE"),
             market_status=getattr(state.market, "status", "AVAILABLE"),
             disease_status=getattr(state.disease, "status", "AVAILABLE"),
-            llm_provider=llm_metadata.get("provider", ""),
-            llm_status=llm_metadata.get("status", ""),
+            llm_provider=llm_metadata.get("provider", llm_result.provider),
+            llm_status=llm_metadata.get("status", llm_result.status),
             prompt_tokens=toks.get("prompt_tokens"),
             completion_tokens=toks.get("completion_tokens"),
         )
@@ -177,6 +180,7 @@ def _serialize(state):
         "farm_advisory": getattr(state, "farm_advisory", state.final_recommendation),
         "confidence": state.confidence,
         "explanation": explanation,
+        "llm_explanation": llm_structured,
         "decision_stability_score": getattr(state, "decision_stability_score", 0.0),
         "stability_level": getattr(state, "stability_level", "INSUFFICIENT"),
         "evidence_quality_score": getattr(state, "evidence_quality_score", 0.0),
@@ -201,7 +205,19 @@ def _serialize(state):
             "geocoding_source": state.raw_inputs.get("geocoding_source") or "unspecified",
             "geocoding_status": state.raw_inputs.get("geocoding_status") or "AVAILABLE",
         },
-        "llm": llm_metadata,
+        "llm": {
+            **llm_metadata,
+            "provider": llm_result.provider,
+            "model": llm_result.model,
+            "role": "Explanation and evidence synthesis only",
+            "decision_authority": "Deterministic Agronomic Safety Engine",
+            "status": llm_result.status,
+            "latency_ms": llm_result.latency_ms,
+            "fallback_used": llm_result.fallback_used,
+            "evidence_sources_count": len(evidence),
+            "tokens": llm_result.tokens,
+            "structured": llm_structured,
+        },
         "weather": state.weather.__dict__,
         "soil": state.soil.__dict__,
         "disease": state.disease.__dict__,
