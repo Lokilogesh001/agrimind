@@ -17,6 +17,7 @@ load_dotenv()
 
 from data_sources.crops import CATEGORIES, STAGE_REGISTRY, get_crop_registry, get_crops_by_category, normalize_crop
 from data_sources.geocoding import resolve_location, search_locations
+from data_sources.stores import DEFAULT_SEARCH_RADIUS_KM, find_nearby_stores
 from llm.explainer import explain, explain_with_metadata
 from observability import database as obs
 from orchestrator.graph import run_advisory
@@ -172,6 +173,31 @@ def _serialize(state):
         ),
     }
 
+    nearby_stores_data = []
+    farm_lat = state.raw_inputs.get("lat")
+    farm_lon = state.raw_inputs.get("lon")
+    if farm_lat is not None and farm_lon is not None:
+        try:
+            store_res = find_nearby_stores(farm_lat, farm_lon)
+            nearby_stores_data = store_res.get("stores", [])
+            obs.log_agent_call(
+                run_id=state.run_id,
+                agent_name="store_locator",
+                input_data={
+                    "lat": farm_lat,
+                    "lon": farm_lon,
+                    "radius_km": store_res.get("radius_km"),
+                    "location": state.raw_inputs.get("location_name") or "",
+                },
+                output_data={"count": store_res.get("count", 0), "provider": store_res.get("provider")},
+                status="SUCCESS" if store_res.get("count", 0) > 0 else "NO_STORES_FOUND",
+                confidence=1.0,
+                latency_ms=store_res.get("latency_ms", 0.0),
+                source=store_res.get("provider", "store_locator"),
+            )
+        except Exception:
+            nearby_stores_data = []
+
     return {
         "run_id": state.run_id,
         "recommendation": state.final_recommendation,
@@ -198,6 +224,7 @@ def _serialize(state):
         "required_additional_info": getattr(state, "required_additional_info", []),
         "decision_provenance": getattr(state, "decision_provenance", {}),
         "evidence_items": getattr(state, "evidence_items", []),
+        "nearby_stores": nearby_stores_data,
         "location": {
             "location_name": state.raw_inputs.get("location_name") or "",
             "latitude": state.raw_inputs.get("lat"),
@@ -257,6 +284,93 @@ def search_location(q: str = ""):
     if not q or not q.strip():
         return {"results": []}
     return {"results": search_locations(q.strip(), count=5)}
+
+
+@app.get("/api/nearby-stores")
+def get_nearby_stores(
+    lat: float | None = None,
+    lon: float | None = None,
+    location: str | None = None,
+    radius: float | None = None,
+    category: str | None = None,
+):
+    """Discover verified agricultural input stores near resolved farm coordinates."""
+    resolved_lat = lat
+    resolved_lon = lon
+    location_name = location or ""
+
+    if (resolved_lat is None or resolved_lon is None) and location:
+        geo = resolve_location(location)
+        if geo.get("status") == "RESOLVED":
+            resolved_lat = geo.get("latitude")
+            resolved_lon = geo.get("longitude")
+            location_name = geo.get("location_name", location)
+
+    if resolved_lat is None or resolved_lon is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Valid coordinates (lat, lon) or resolvable location name must be provided.",
+        )
+
+    if not (-90.0 <= resolved_lat <= 90.0) or not (-180.0 <= resolved_lon <= 180.0):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Coordinates out of bounds: lat={resolved_lat}, lon={resolved_lon}. Valid bounds: lat [-90, 90], lon [-180, 180].",
+        )
+
+    try:
+        result = find_nearby_stores(
+            lat=resolved_lat,
+            lon=resolved_lon,
+            radius_km=radius,
+            category=category,
+        )
+    except Exception as exc:
+        try:
+            obs.log_agent_call(
+                run_id="nearby_stores_query",
+                agent_name="store_locator",
+                input_data={"lat": resolved_lat, "lon": resolved_lon, "radius_km": radius, "location": location_name},
+                output_data={"error": str(exc)},
+                status="UNAVAILABLE",
+                confidence=0.0,
+                latency_ms=0.0,
+                source="store_locator",
+            )
+        except Exception:
+            pass
+        return {
+            "status": "unavailable",
+            "source": "none",
+            "provider": "none",
+            "message": "Store discovery is temporarily unavailable. The advisory remains valid.",
+            "radius_km": radius or DEFAULT_SEARCH_RADIUS_KM,
+            "count": 0,
+            "stores": [],
+        }
+
+    try:
+        obs.log_agent_call(
+            run_id="nearby_stores_query",
+            agent_name="store_locator",
+            input_data={"lat": resolved_lat, "lon": resolved_lon, "radius_km": result.get("radius_km"), "location": location_name},
+            output_data={"count": result.get("count", 0), "provider": result.get("provider")},
+            status="SUCCESS" if result.get("count", 0) > 0 else "NO_STORES_FOUND",
+            confidence=1.0,
+            latency_ms=result.get("latency_ms", 0.0),
+            source=result.get("provider", "store_locator"),
+        )
+    except Exception:
+        pass
+
+    return {
+        **result,
+        "location": {
+            "location_name": location_name,
+            "latitude": resolved_lat,
+            "longitude": resolved_lon,
+        },
+    }
 
 
 @app.post("/api/advisory")

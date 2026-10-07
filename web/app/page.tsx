@@ -356,7 +356,7 @@ export default function Home() {
                       lat: result.location?.latitude ?? activeScenario.lat,
                       lon: result.location?.longitude ?? activeScenario.lon,
                     }}
-                    stores={[]}
+                    stores={result.nearby_stores || []}
                   />
 
                   {/* INPUT PRICE & MRP TRANSPARENCY */}
