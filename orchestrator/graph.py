@@ -46,6 +46,15 @@ def node_weather(state: AgriMindState) -> AgriMindState:
         lat=lat, lon=lon,
         override=inputs.get("weather_override"),
     )
+    result.execution_time_ms = latency
+    result.input_summary = {"lat": lat, "lon": lon, "has_override": bool(inputs.get("weather_override"))}
+    result.findings = f"Rainfall risk: {result.rainfall_risk:.2f} ({result.risk_level})"
+    if result.status == "UNAVAILABLE":
+        result.warnings = ["Weather telemetry is unavailable. Running under safe default assumptions."]
+    elif result.status == "TIMEOUT":
+        result.warnings = ["Weather provider timed out. Operating with unverified telemetry."]
+    result.evidence = [{"rainfall_risk": result.rainfall_risk, "fertilizer_condition": result.fertilizer_condition}]
+
     state.weather = result
     state.log(f"weather_agent -> rainfall_risk={result.rainfall_risk}")
     obs.log_agent_call(
@@ -87,6 +96,13 @@ def node_soil(state: AgriMindState) -> AgriMindState:
         soil_type=soil_type,
         mode=soil_mode,
     )
+    result.execution_time_ms = latency
+    result.input_summary = {"n": n, "p": p, "k": k, "crop": state.crop.crop, "soil_type": soil_type, "mode": soil_mode}
+    result.findings = result.nutrient_assessment_text
+    if not result.npk_available:
+        result.warnings = ["NPK measurements were not provided. Soil testing is required before precise fertilizer recommendation."]
+    result.evidence = [{"npk_available": result.npk_available, "overall_deficiency": result.overall_deficiency}]
+
     state.soil = result
     state.log(f"soil_agent -> overall_deficiency={result.overall_deficiency} (npk_available={result.npk_available})")
     obs.log_agent_call(
@@ -106,6 +122,24 @@ def node_disease(state: AgriMindState) -> AgriMindState:
         override=inputs.get("disease_override"),
         selected_crop=state.crop.crop,
     )
+    result.execution_time_ms = latency
+    result.input_summary = {
+        "has_image": bool(inputs.get("image_path")),
+        "selected_crop": state.crop.crop,
+        "has_override": bool(inputs.get("disease_override")),
+    }
+    result.findings = (
+        f"Detected: {result.predicted_class} (confidence: {result.confidence:.2f})"
+        if result.predicted_class else f"Status: {result.status}"
+    )
+    if result.status == "MODEL_UNAVAILABLE":
+        result.warnings = ["Disease model checkpoint is unavailable. Image inference cannot run."]
+    elif result.status == "INVALID_IMAGE":
+        result.warnings = ["Uploaded image is invalid, corrupted, or unsupported."]
+    elif result.crop_mismatch:
+        result.warnings = [f"Detected crop '{result.crop_detected}' does not match selected crop '{state.crop.crop}'."]
+    result.evidence = [{"predicted_class": result.predicted_class, "crop_mismatch": result.crop_mismatch, "status": result.status}]
+
     state.disease = result
     if result.predicted_class:
         mismatch_note = " [CROP MISMATCH]" if result.crop_mismatch else ""
@@ -125,6 +159,11 @@ def node_disease(state: AgriMindState) -> AgriMindState:
 def node_advisory(state: AgriMindState) -> AgriMindState:
     """Standalone Advisory Agent: compute preliminary S(a), no veto logic."""
     result, latency = _timed(advisory_agent.run, state)
+    result.execution_time_ms = latency
+    result.input_summary = {"crop": state.crop.crop, "growth_stage": state.crop.growth_stage}
+    result.findings = f"Preliminary recommendation: {result.preliminary_recommendation}"
+    result.evidence = [{"preliminary_recommendation": result.preliminary_recommendation, "scores": result.scores}]
+
     state.advisory = result
     state.log(f"advisory_agent -> preliminary={result.preliminary_recommendation}")
     obs.log_agent_call(
@@ -143,6 +182,13 @@ def node_market(state: AgriMindState) -> AgriMindState:
         crop=state.crop.crop,
         market=inputs.get("market"),
     )
+    result.execution_time_ms = latency
+    result.input_summary = {"current_price": inputs.get("current_price", 0), "crop": state.crop.crop}
+    result.findings = f"Market score: {result.market_score:.2f}, signal: {result.signal}"
+    if not result.is_available:
+        result.warnings = ["Market pricing data is unavailable. Proceeding with agronomic monitoring."]
+    result.evidence = [{"market_score": result.market_score, "signal": result.signal}]
+
     state.market = result
     state.log(f"market_agent -> score={result.market_score} signal={result.signal}")
     obs.log_agent_call(

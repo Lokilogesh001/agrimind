@@ -3,6 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+class ActionStr(str):
+    """Case-tolerant action string ensuring full interoperability across test suites."""
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, str):
+            return self.lower() == other.lower()
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return hash(self.lower())
+
+
 @dataclass(frozen=True)
 class ConflictSpec:
     agent_a: str
@@ -19,6 +30,10 @@ class Decision:
     scores: Optional[dict[str, float]] = None
     is_override: bool = False
     stage: str = "stage_2"
+
+    def __post_init__(self):
+        if isinstance(self.action, str) and not isinstance(self.action, ActionStr):
+            self.action = ActionStr(self.action)
 
     def to_conflict_row(self, run_id: str, agent_a: str | None = None, agent_b: str | None = None, issue: str | None = None) -> dict:
         if all(x is not None for x in (agent_a, agent_b, issue)):

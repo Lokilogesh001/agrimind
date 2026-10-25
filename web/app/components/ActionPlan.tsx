@@ -3,6 +3,31 @@
 import React from 'react';
 import { CheckSquare, ArrowRight, Clock, Calendar, AlertTriangle } from 'lucide-react';
 
+interface WorkflowStep {
+  step: number;
+  phase: string;
+  title: string;
+  desc: string;
+  category?: string;
+}
+
+interface OperationalPlan {
+  primary_action?: string;
+  operational_state?: string;
+  treatment_permission?: {
+    status?: string;
+    is_permitted?: boolean;
+    action_instruction?: string;
+    weather_hold?: boolean;
+    rain_free_window_hours?: number;
+    reassessment_trigger?: string;
+    cultural_measures?: string;
+  };
+  workflow_steps?: WorkflowStep[];
+  rain_free_window_hours?: number;
+  reassessment_trigger?: string;
+}
+
 interface ActionPlanProps {
   recommendation: string;
   crop?: string;
@@ -20,6 +45,7 @@ interface ActionPlanProps {
     risk_level?: string;
     rainfall_risk?: number;
   } | null;
+  operationalPlan?: OperationalPlan | null;
 }
 
 export function ActionPlan({
@@ -28,8 +54,61 @@ export function ActionPlan({
   disease,
   soil,
   weather,
+  operationalPlan,
 }: ActionPlanProps) {
+  // If backend provided authoritative unified operational plan, use it directly (Boil the Lake)
+  if (operationalPlan?.workflow_steps && operationalPlan.workflow_steps.length >= 3) {
+    const s1 = operationalPlan.workflow_steps[0];
+    const s2 = operationalPlan.workflow_steps[1];
+    const s3 = operationalPlan.workflow_steps[2];
+    return (
+      <div className="card" id="action-plan-section">
+        <div className="card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckSquare size={17} color="var(--forest-primary)" />
+            <h3 style={{ fontSize: '15px', margin: 0 }}>WHAT SHOULD I DO?</h3>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            Unified Coordinated Operational Plan
+          </span>
+        </div>
+
+        <div className="card-body">
+          <div className="action-plan-grid">
+            <div className="action-step-card step-now">
+              <div className="step-label">
+                <Clock size={12} />
+                <span>{s1.phase || 'NOW · Immediate'}</span>
+              </div>
+              <div className="step-title">{s1.title}</div>
+              <div className="step-description">{s1.desc}</div>
+            </div>
+
+            <div className="action-step-card step-next">
+              <div className="step-label">
+                <ArrowRight size={12} />
+                <span>{s2.phase || 'NEXT · Follow-up'}</span>
+              </div>
+              <div className="step-title">{s2.title}</div>
+              <div className="step-description">{s2.desc}</div>
+            </div>
+
+            <div className="action-step-card step-then">
+              <div className="step-label">
+                <Calendar size={12} />
+                <span>{s3.phase || 'THEN · Subsequent'}</span>
+              </div>
+              <div className="step-title">{s3.title}</div>
+              <div className="step-description">{s3.desc}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const normRec = String(recommendation || 'monitor').toLowerCase();
+  const weatherRiskHigh = (weather?.risk_level || '').toUpperCase() === 'HIGH' || (weather?.rainfall_risk ?? 0) > 0.4;
   const hasDisease = Boolean(
     disease?.predicted_class &&
     !disease.predicted_class.toLowerCase().includes('healthy') &&
@@ -51,31 +130,34 @@ export function ActionPlan({
     desc: 'Prepare for upcoming phenological stage nutrition and record crop growth observations.',
   };
 
-  if (normRec.includes('disease') || normRec === 'disease_management_first') {
+  // Safe fallback if operationalPlan not provided: enforce deterministic weather-first safety
+  if (normRec.includes('delay') || weatherRiskHigh) {
     nowStep = {
-      title: 'Prioritize Disease Containment',
-      desc: 'Inspect affected foliage immediately. Remove and destroy severely infected plant debris to halt pathogen transmission.',
+      title: 'Suspend Foliar Spraying & Soil Broadcast',
+      desc: 'Immediately delay all chemical sprays and fertilizer applications due to elevated rainfall risk (run-off and wash-off hazard).',
     };
     nextStep = {
-      title: 'Apply Verified Disease Control',
-      desc: 'Apply recommended plant protection treatment according to verified agricultural guidance, wearing appropriate protective equipment.',
+      title: hasDisease ? 'Sanitize & Prune Affected Foliage (Cultural)' : 'Inspect Furrows & Farm Drainage',
+      desc: hasDisease
+        ? 'Safely prune blighted leaves and clear waterlogged furrows without applying chemical fungicides until rain subsides.'
+        : 'Clear field drainage channels to prevent root zone water stagnation during forecast rain events.',
     };
     thenStep = {
-      title: 'Address Nutrients After Control',
-      desc: 'Re-evaluate disease pressure in 3–5 days. Nutrient supplementation may proceed once pathogen activity is stabilized.',
+      title: 'Reassess After 24–48h Rain-Free Window',
+      desc: 'Verify that canopy is completely dry and precipitation risk < 30% before resuming any approved chemical intervention.',
     };
-  } else if (normRec.includes('delay')) {
+  } else if (normRec.includes('disease') || normRec === 'disease_management_first') {
     nowStep = {
-      title: 'Suspend Field Chemical Applications',
-      desc: 'Immediately postpone all fertilizer broadcasting, foliar spraying, and chemical applications due to imminent precipitation.',
+      title: 'Sanitize Affected Plant Debris',
+      desc: 'Remove severely blighted plant material and dispose outside cultivation boundaries.',
     };
     nextStep = {
-      title: 'Inspect Farm Drainage Channels',
-      desc: 'Ensure drainage furrows and field bunds are clear to avoid water stagnation around root zones during rainfall.',
+      title: 'Apply CIBRC-Verified Plant Protection',
+      desc: 'Apply registered formulation under clear canopy conditions with PPE.',
     };
     thenStep = {
-      title: 'Re-check Weather in 24–48 Hours',
-      desc: 'Resume planned agrochemical interventions once precipitation risk clears and soil surface is trafficable.',
+      title: 'Evaluate Pathogen Stabilization in 3–5 Days',
+      desc: 'Inspect newly emerged growth before resuming routine fertilizer nutrition.',
     };
   } else if (normRec.includes('fertilizer') || normRec.includes('apply_fertilizer')) {
     const nutrient = soil?.priority_nutrient ? soil.priority_nutrient.toUpperCase() : 'balanced nutrients';

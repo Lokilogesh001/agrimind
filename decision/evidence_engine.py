@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from decision.models import ConflictSpec, Decision
+from decision.models import ConflictSpec, Decision, ActionStr
 from decision.scoring import ACTIONS, weighted_score
 from decision.evidence_quality import calculate_evidence_quality
 from decision.safety_guard import apply_agronomic_safety_guard, derive_decision_change_triggers
@@ -45,7 +45,9 @@ SOURCE_RELIABILITY_SCORES: dict[str, float] = {
     "engineering_fallback_default": 0.50,
     "regional_agroclimatic_heuristic": 0.65,
     "agmarknet_api": 0.90,
-    "caller_provided": 0.75,
+    "agmarknet_cache": 0.75,
+    "caller_provided": 0.70,
+    "user_supplied": 0.65,
     "plantvillage_mobilenet": 0.85,
     "disease_override": 0.80,
     "none": 0.10,
@@ -216,8 +218,10 @@ def extract_market_evidence(state: Any) -> dict[str, Any]:
 
     finding = f"Market signal: {getattr(m, 'signal', 'hold')} (score: {getattr(m, 'market_score', 0.0):.2f})" if is_avail else "Market price data unavailable; using safe hold fallback"
     limitations = ["Market conditions advisory only; cannot override agronomic safety."]
-    if status == "DEMO_DATA":
-        limitations.append("Caller-provided demo prices used; not real-time mandi arrivals.")
+    if status in ("DEMO_DATA", "USER_SUPPLIED") or source == "caller_provided":
+        limitations.append("Caller-provided benchmark price used; not verified real-time APMC mandi telemetry.")
+    elif status == "CACHED" or source == "agmarknet_cache":
+        limitations.append("Cached APMC mandi telemetry used; observe market observation latency.")
 
     return {
         "agent": "market",
@@ -278,6 +282,10 @@ def detect_and_resolve_conflicts(state: Any, evidence_list: list[dict[str, Any]]
     is_actionable = bool(getattr(d, "predicted_class", None)) and (getattr(d, "confidence", 0.0) >= 0.60) and not d_mismatch
     d.actionable = is_actionable
 
+    # Check for acute critical disease (e.g. late blight epidemic) requiring immediate field quarantine
+    d_class_str = str(getattr(d, "predicted_class", "") or "").lower()
+    has_severe_disease = getattr(d, "actionable", False) and ("late_blight" in d_class_str or getattr(d, "severity", "low") == "critical")
+
     # 1. Weather vs Fertilizer (Rainfall Risk Veto — Priority 1)
     if w.rainfall_risk > 0.70:
         c1 = {
@@ -311,11 +319,26 @@ def detect_and_resolve_conflicts(state: Any, evidence_list: list[dict[str, Any]]
             "score_impact": -0.20,
         }
         conflicts.extend([c1, c2, c3])
-        terminal_action = "DELAY"
-        terminal_reason = "rainfall_risk"
-        terminal_priority = 1
-        re_evaluation_trigger = "Re-evaluate after heavy rainfall passes."
-        return conflicts, terminal_action, terminal_reason, terminal_priority, re_evaluation_trigger
+
+        if not has_severe_disease:
+            terminal_action = ActionStr("DELAY")
+            terminal_reason = "rainfall_risk"
+            terminal_priority = 1
+            re_evaluation_trigger = "Re-evaluate after heavy rainfall passes."
+            return conflicts, terminal_action, terminal_reason, terminal_priority, re_evaluation_trigger
+        else:
+            # When severe disease is active, disease containment protocol takes priority,
+            # while chemical spray is deferred via the treatment permission state machine
+            conflicts.append({
+                "agent_a": "weather",
+                "agent_b": "disease",
+                "conflict_type": "weather_vs_disease",
+                "issue": "rainfall_risk",
+                "evidence": f"Rainfall risk {w.rainfall_risk:.2f} requires delaying chemical spray; cultural sanitation prioritized.",
+                "resolution": "DISEASE_MANAGEMENT_FIRST focuses on non-chemical containment; chemical spray held for rain-free window.",
+                "priority": 1,
+                "score_impact": -0.15,
+            })
 
     # 2. Crop Mismatch in Disease Model
     if d_mismatch:
@@ -505,8 +528,22 @@ def calculate_decision_stability_score(
 
     conflict_penalty = min(len(conflicts) * CONFLICT_PENALTY_RATE, 0.40)
     dss = max(0.0, min(1.0, round(base_score - conflict_penalty, 4)))
-    return dss
 
+    if hasattr(state, "decision_stability_breakdown"):
+        state.decision_stability_breakdown = {
+            "formula": "DSS = (0.25 * avg_confidence) + (0.20 * avg_source_reliability) + (0.15 * avg_temporal_relevance) + (0.25 * completeness) + (0.15 * agreement) - conflict_penalty",
+            "agent_confidence": round(avg_confidence, 4),
+            "source_reliability": round(avg_reliability, 4),
+            "temporal_relevance": round(avg_relevance, 4),
+            "evidence_completeness": round(completeness, 4),
+            "agent_agreement": round(agreement, 4),
+            "conflict_penalty": round(conflict_penalty, 4),
+            "active_conflicts_count": len(conflicts),
+            "base_score": round(base_score, 4),
+            "final_dss": dss,
+        }
+
+    return dss
 
 
 # ==============================================================================

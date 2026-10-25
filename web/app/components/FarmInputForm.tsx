@@ -337,10 +337,10 @@ export function FarmInputForm({
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: soilMode === 'measured' ? 'var(--semantic-success)' : (soilMode === 'report' ? 'var(--teal-dark)' : 'var(--text-muted)'),
+                color: soilMode === 'measured' ? 'var(--semantic-success)' : (soilMode === 'report' ? '#d97706' : 'var(--text-muted)'),
               }}
             >
-              {soilMode === 'measured' ? 'HIGHER CONFIDENCE' : (soilMode === 'report' ? 'LAB TESTED DATA' : (soilMode === 'manual' ? 'MODERATE CONFIDENCE' : 'ESTIMATED / MODERATE'))}
+              {soilMode === 'measured' ? 'HIGHER CONFIDENCE (MEASURED)' : (soilMode === 'report' ? 'REPORT ATTACHED (EXTRACTION PENDING)' : (soilMode === 'manual' ? 'MODERATE CONFIDENCE' : 'ESTIMATED / MODERATE'))}
             </span>
           </div>
 
@@ -390,7 +390,7 @@ export function FarmInputForm({
             >
               <div>
                 <div style={{ fontWeight: 700 }}>D. Soil Report Upload</div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Lab tested data</div>
+                <div style={{ fontSize: '10px', opacity: 0.85 }}>Document stored; extraction pending</div>
               </div>
             </button>
           </div>
@@ -519,8 +519,8 @@ export function FarmInputForm({
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           ✓ {soilReportFile.name}
                         </div>
-                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {soilReportFile.name.split('.').pop()?.toUpperCase() || 'FILE'} · {formatFileSize(soilReportFile.size)} · Ready for processing
+                        <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '2px', fontWeight: 600 }}>
+                          {soilReportFile.name.split('.').pop()?.toUpperCase() || 'FILE'} · {formatFileSize(soilReportFile.size)} · State: Uploaded (Extraction Pending) — NPK remains unmeasured
                         </div>
                       </div>
                     </div>

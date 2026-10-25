@@ -48,6 +48,7 @@ export default function Home() {
     farmArea: string;
     irrigationMethod: string;
     sowingDate: string;
+    currentPrice: string;
     hasImage: boolean;
   }>({
     locationName: 'Madurai, Tamil Nadu, India',
@@ -61,6 +62,7 @@ export default function Home() {
     farmArea: '2.5',
     irrigationMethod: 'Drip',
     sowingDate: '',
+    currentPrice: '2000',
     hasImage: false,
   });
 
@@ -106,6 +108,7 @@ export default function Home() {
       farmArea: payload.farmArea,
       irrigationMethod: payload.irrigationMethod,
       sowingDate: payload.sowingDate,
+      currentPrice: payload.currentPrice,
       hasImage: Boolean(payload.image),
     });
 
@@ -299,6 +302,7 @@ export default function Home() {
                     disease={result.disease}
                     soil={result.soil}
                     weather={result.weather}
+                    operationalPlan={result.operational_plan}
                   />
 
                   {/* DECISION SIGNALS (Weather, Soil, Disease, Market) */}
@@ -334,6 +338,8 @@ export default function Home() {
                     <DiseaseActionCard
                       disease={result.disease}
                       crop={activeScenario.crop}
+                      treatmentPermission={result.treatment_permission || result.operational_plan?.treatment_permission}
+                      recommendation={result.recommendation}
                     />
                   )}
 
@@ -359,12 +365,18 @@ export default function Home() {
                     stores={result.nearby_stores || []}
                   />
 
-                  {/* INPUT PRICE & MRP TRANSPARENCY */}
+                  {/* INPUT PRICE & MRP TRANSPARENCY (Fixed P1-01 hardcoded ternary) */}
                   <PriceCard
                     crop={activeScenario.crop}
-                    mandiPrice={result.market?.current_price || (activeScenario.npk ? Number(result.market?.market_score ? 2200 : 0) : null)}
+                    benchmarkPrice={result.market?.benchmark_price ?? (activeScenario.currentPrice ? Number(activeScenario.currentPrice) : null)}
+                    observedPrice={result.market?.observed_price ?? null}
+                    mandiName={result.market?.mandi_name}
+                    commodityGrade={result.market?.commodity_grade}
+                    retrievalTimestamp={result.market?.retrieval_timestamp}
                     marketScore={result.market?.market_score}
                     marketSignal={result.market?.signal}
+                    marketFormula={result.market?.market_formula}
+                    phenologyNote={result.market?.phenology_note}
                   />
 
                   {/* HOW AGRIMIND REACHED THIS DECISION (Process Path) */}

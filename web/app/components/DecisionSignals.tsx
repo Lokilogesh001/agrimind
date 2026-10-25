@@ -20,6 +20,17 @@ interface DecisionSignalsProps {
     risk_explanation?: string;
     precipitation_probability?: number | null;
     rainfall_amount_mm?: number | null;
+    forecast_horizon_hours?: number;
+    peak_intensity_mm_hr?: number;
+    duration_hours_fraction?: number;
+    risk_formula?: string;
+    washoff_risk_level?: string;
+    leaching_risk_level?: string;
+    freshness_status?: string;
+    is_cached?: boolean;
+    is_estimated?: boolean;
+    observation_time?: string | null;
+    retrieval_time?: string | null;
   } | null;
   soil?: {
     status?: string;
@@ -32,7 +43,9 @@ interface DecisionSignalsProps {
     status?: string;
     predicted_class?: string | null;
     confidence?: number;
+    classifier_score?: number;
     severity?: string;
+    severity_qualification?: string;
     actionable?: boolean;
     crop_mismatch?: boolean;
     crop_detected?: string;
@@ -43,6 +56,10 @@ interface DecisionSignalsProps {
     signal?: string;
     market_score?: number;
     current_price?: number;
+    benchmark_price?: number;
+    observed_price?: number;
+    mandi_name?: string;
+    market_formula?: string;
   } | null;
 }
 
@@ -55,15 +72,26 @@ export function DecisionSignals({
   const [showTechnical, setShowTechnical] = useState(false);
 
   // 1. WEATHER SIGNAL
-  const weatherAvail = weather?.is_available !== false && weather?.status !== 'UNAVAILABLE';
+  const weatherStatus = weather?.status || 'AVAILABLE';
+  const weatherAvail = weather?.is_available !== false && !['UNAVAILABLE', 'TIMEOUT', 'INVALID'].includes(weatherStatus);
   let weatherStatusText = 'Low weather risk';
   let weatherBadgeVariant: BadgeVariant = 'success';
   let weatherBadgeLabel = 'SAFE';
 
   if (!weatherAvail) {
-    weatherStatusText = 'Weather telemetry offline';
-    weatherBadgeVariant = 'neutral';
-    weatherBadgeLabel = 'OFFLINE';
+    if (weatherStatus === 'TIMEOUT') {
+      weatherStatusText = 'Weather request timed out';
+      weatherBadgeVariant = 'warning';
+      weatherBadgeLabel = 'TIMEOUT';
+    } else {
+      weatherStatusText = 'Weather telemetry offline';
+      weatherBadgeVariant = 'neutral';
+      weatherBadgeLabel = 'OFFLINE';
+    }
+  } else if (weather?.freshness_status === 'CACHED' || weather?.is_cached) {
+    weatherStatusText = 'Cached forecast observation';
+    weatherBadgeVariant = 'info';
+    weatherBadgeLabel = 'CACHED';
   } else {
     const riskLvl = (weather?.risk_level || 'LOW').toUpperCase();
     if (riskLvl === 'SEVERE' || riskLvl === 'HIGH') {
@@ -80,6 +108,7 @@ export function DecisionSignals({
       weatherBadgeLabel = 'FAVORABLE';
     }
   }
+
 
   // 2. SOIL SIGNAL
   let soilStatusText = 'Soil profile balanced';
@@ -182,7 +211,7 @@ export function DecisionSignals({
               <StatusBadge label={weatherBadgeLabel} variant={weatherBadgeVariant} size="sm" />
             </div>
             <div>
-              <span className="signal-name">Weather</span>
+              <span className="signal-name">Weather (Open-Meteo)</span>
               <div className="signal-status-text">{weatherStatusText}</div>
             </div>
             <p className="signal-detail">
@@ -191,8 +220,22 @@ export function DecisionSignals({
                 : 'Standard protective safety margins applied.'}
             </p>
             {showTechnical && weatherAvail && (
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
-                Rain risk: <strong>{Number(weather?.rainfall_risk || 0).toFixed(2)}</strong> · Rain: <strong>{Number(weather?.rainfall_amount_mm || 0).toFixed(1)} mm</strong>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div>Composite Risk: <strong>{Number(weather?.rainfall_risk || 0).toFixed(3)}</strong> (Horizon: {weather?.forecast_horizon_hours || 48}h)</div>
+                <div>Max Precip Prob: <strong>{weather?.precipitation_probability ?? 0}%</strong> · Rain: <strong>{Number(weather?.rainfall_amount_mm || 0).toFixed(1)} mm</strong></div>
+                {weather?.peak_intensity_mm_hr !== undefined && (
+                  <div>Peak Intensity: <strong>{weather.peak_intensity_mm_hr} mm/hr</strong></div>
+                )}
+                <div style={{ marginTop: '2px', display: 'flex', gap: '8px' }}>
+                  <span>Foliar Washoff: <strong style={{ color: weather?.washoff_risk_level === 'HIGH' ? '#dc2626' : 'inherit' }}>{weather?.washoff_risk_level || 'LOW'}</strong></span>
+                  <span>·</span>
+                  <span>Leaching: <strong style={{ color: weather?.leaching_risk_level === 'HIGH' ? '#dc2626' : 'inherit' }}>{weather?.leaching_risk_level || 'LOW'}</strong></span>
+                </div>
+                {weather?.risk_formula && (
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '3px' }}>
+                    {weather.risk_formula}
+                  </div>
+                )}
               </div>
             )}
           </div>

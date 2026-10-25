@@ -241,6 +241,8 @@ def resolve_location(
                 "longitude": v["longitude"],
                 "source": v["source"],
                 "status": "RESOLVED",
+                "precision": "city_centroid",
+                "precision_note": "Coordinates represent regional municipal centroid. For farm-level precision, enter exact GPS coordinates.",
                 "error": None,
             }
             _MEMORY_CACHE[clean] = res
@@ -259,6 +261,8 @@ def resolve_location(
                 "longitude": None,
                 "source": "open_meteo_geocoding",
                 "status": "ERROR",
+                "precision": "unknown",
+                "precision_note": "",
                 "error": f"Geocoding service returned status {resp.status_code}",
             }
 
@@ -271,6 +275,8 @@ def resolve_location(
                 "longitude": None,
                 "source": "open_meteo_geocoding",
                 "status": "INVALID",
+                "precision": "unknown",
+                "precision_note": "",
                 "error": "Malformed geocoding response",
             }
 
@@ -283,6 +289,8 @@ def resolve_location(
                 "longitude": None,
                 "source": "open_meteo_geocoding",
                 "status": "NOT_FOUND",
+                "precision": "unknown",
+                "precision_note": "",
                 "error": f"No geocoding match found for location '{location_name}'",
             }
 
@@ -305,6 +313,8 @@ def resolve_location(
             "longitude": round(lon_val, 4),
             "source": "open_meteo_geocoding",
             "status": status,
+            "precision": "city_centroid" if not top.get("feature_code", "").startswith("PPLX") else "suburb",
+            "precision_note": "Coordinates represent regional municipal centroid. For farm-level precision, enter exact GPS coordinates.",
             "error": None,
         }
         _MEMORY_CACHE[clean] = res

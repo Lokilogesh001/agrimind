@@ -24,6 +24,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from sqlalchemy.pool import StaticPool
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///agrimind_local.db")
 
 Base = declarative_base()
@@ -45,7 +47,10 @@ def _get_session_factory():
     url = os.environ.get("DATABASE_URL", DATABASE_URL)
     if _engine is None or str(_engine.url) != url:
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-        _engine = create_engine(url, echo=False, future=True, connect_args=connect_args)
+        engine_kwargs = {"echo": False, "future": True, "connect_args": connect_args}
+        if url in ("sqlite:///:memory:", "sqlite://", "sqlite:///"):
+            engine_kwargs["poolclass"] = StaticPool
+        _engine = create_engine(url, **engine_kwargs)
         _SessionLocal = sessionmaker(bind=_engine, future=True)
     return _SessionLocal
 
@@ -369,13 +374,25 @@ def log_conflict(
         session.commit()
 
 
-def log_feedback(run_id: str, farmer_action_taken: str, outcome_reported: str = "", comment: str = ""):
+def log_feedback(
+    run_id: str,
+    farmer_action_taken: str,
+    outcome_reported: str = "",
+    comment: str = "",
+    days_post_application: int | None = None,
+    reporter_type: str = "farmer_self_reported",
+    outcome_category: str = "partially_improved",
+    **kwargs: Any,
+):
     with _get_session_factory()() as session:
+        detail_comment = comment
+        if days_post_application is not None:
+            detail_comment = f"[{reporter_type.upper()} · {days_post_application}d post-app · {outcome_category.upper()}] {comment}".strip()
         row = Feedback(
             run_id=run_id,
             farmer_action_taken=farmer_action_taken,
             outcome_reported=outcome_reported,
-            comment=comment,
+            comment=detail_comment,
         )
         session.add(row)
         session.commit()

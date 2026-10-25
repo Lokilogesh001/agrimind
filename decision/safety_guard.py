@@ -12,6 +12,7 @@ The Safety Guard is NOT an LLM. It enforces hard safety constraints:
 from __future__ import annotations
 
 from typing import Any
+from decision.models import ActionStr
 
 
 def apply_agronomic_safety_guard(
@@ -58,17 +59,27 @@ def apply_agronomic_safety_guard(
             )
 
     # -------------------------------------------------------------------------
-    # Rule B — Low disease confidence
-    # If disease confidence is below actionable threshold (0.60):
+    # -------------------------------------------------------------------------
+    # Rule B — Low disease confidence / unverified model
+    # If disease confidence is below actionable threshold (0.60) or model unavailable:
     # DO NOT issue disease-specific treatment recommendation.
     # -------------------------------------------------------------------------
     d_class = getattr(d, "predicted_class", None) if d else None
     d_conf = getattr(d, "confidence", 0.0) if d else 0.0
     d_actionable = getattr(d, "actionable", False) if d else False
     d_mismatch = getattr(d, "crop_mismatch", False) if d else False
+    d_status = getattr(d, "status", "AVAILABLE") if d else "AVAILABLE"
     selected_crop_name = getattr(getattr(state, "crop", None), "crop", "") or "selected crop"
 
-    if d_class and not d_mismatch and d_conf < 0.60:
+    if d_status in ("MODEL_UNAVAILABLE", "UNAVAILABLE", "FAILED", "INVALID_IMAGE"):
+        if action == "DISEASE_MANAGEMENT_FIRST":
+            action = "monitor"
+            reason = "rule_b_model_unavailable"
+        applied_constraints.append(
+            f"Rule B (Disease Model Guard): Disease diagnosis is unverified ({d_status}). "
+            f"Disease-specific chemical treatment blocked."
+        )
+    elif d_class and not d_mismatch and d_conf < 0.60:
         if action == "DISEASE_MANAGEMENT_FIRST":
             action = "monitor"
             reason = "rule_b_low_disease_confidence"
@@ -96,16 +107,35 @@ def apply_agronomic_safety_guard(
 
     # -------------------------------------------------------------------------
     # Rule D — Unsafe weather
-    # If configured weather safety threshold is exceeded:
+    # If configured weather safety threshold is exceeded or weather is unverified:
     # BLOCK unsafe agronomic operation (e.g. fertilizer application).
     # -------------------------------------------------------------------------
     from agents.weather_agent import get_weather_risk_level
+    w_status = getattr(w, "status", "AVAILABLE") if w else "UNAVAILABLE"
+    w_freshness = getattr(w, "freshness_status", "REAL_DATA") if w else "UNAVAILABLE"
+    w_is_stale = (w_status == "STALE_CACHE" or w_freshness == "STALE_CACHE" or getattr(w, "is_stale", False))
+    w_avail = getattr(w, "is_available", True) and w_status not in ("TIMEOUT", "UNAVAILABLE", "INVALID") and not w_is_stale
     rainfall_risk = getattr(w, "rainfall_risk", 0.0) if w else 0.0
-    w_level = getattr(w, "risk_level", None) or get_weather_risk_level(rainfall_risk)
-    if w_level in ("HIGH", "SEVERE") or round(rainfall_risk, 4) >= 0.60:
+    w_level = getattr(w, "risk_level", None) or (get_weather_risk_level(rainfall_risk) if w_avail else "UNKNOWN")
+
+    if not w_avail:
+        desc_status = "stale observation (>15 min cache)" if w_is_stale else f"unverified ({w_status})"
+        if action == "apply_fertilizer":
+            action = ActionStr("DELAY")
+            reason = "rule_d_weather_safety_veto"
+            applied_constraints.append(
+                f"Rule D (Weather Safety Precaution): Meteorological telemetry is {desc_status}. "
+                f"Immediate chemical fertilizer application deferred pending weather confirmation to avoid unmeasured runoff/leaching hazard."
+            )
+        elif action not in ("delay", "monitor"):
+            applied_constraints.append(
+                f"Rule D (Weather Safety Precaution): Meteorological telemetry is {desc_status}. "
+                f"Field agrochemical interventions require local weather verification."
+            )
+    elif w_level in ("HIGH", "SEVERE") or round(rainfall_risk, 4) >= 0.60:
         desc = "Severe rainfall risk" if w_level == "SEVERE" else "High rainfall risk"
         if action == "apply_fertilizer":
-            action = "delay"
+            action = ActionStr("DELAY")
             reason = "rule_d_weather_safety_veto"
             applied_constraints.append(
                 f"Rule D (Weather Safety): {desc} ({rainfall_risk:.2f} - {w_level}) "
@@ -117,9 +147,10 @@ def apply_agronomic_safety_guard(
                 f"requires delaying chemical spraying or top-dressing operations."
             )
 
+
     # -------------------------------------------------------------------------
     # Rule E — Stale or unavailable critical data
-    # If critical weather/market data is stale or unavailable:
+    # If critical weather/market/disease data is stale or unavailable:
     # Downgrade confidence and prevent high-risk decisions.
     # -------------------------------------------------------------------------
     w_status = getattr(w, "status", "AVAILABLE") if w else "UNAVAILABLE"
@@ -128,6 +159,12 @@ def apply_agronomic_safety_guard(
         applied_constraints.append(
             f"Rule E (Data Freshness Guard): Meteorological forecast is {w_status}. "
             f"Confidence downgraded due to unverified weather telemetry."
+        )
+    if d_status in ("MODEL_UNAVAILABLE", "UNAVAILABLE", "FAILED"):
+        confidence_penalty += 0.10
+        applied_constraints.append(
+            f"Rule E (Data Freshness Guard): Disease diagnostic service is {d_status}. "
+            f"Confidence downgraded for unverified foliar pathology."
         )
 
     # -------------------------------------------------------------------------

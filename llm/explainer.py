@@ -1,11 +1,11 @@
-"""Observable, source-grounded OpenAI explanation layer for AgriMind.
+"""Observable, source-grounded multi-provider explanation layer for AgriMind.
 
 AUTHORITATIVE ARCHITECTURE:
 Farm Input -> Specialist Agents -> Deterministic Decision Engine ->
 Agronomic Safety Guard -> Authoritative Final Decision ->
-OpenAI Explanation Layer -> Farmer-Facing Output
+LLM Explanation Layer (OpenAI -> xAI Grok -> Deterministic Template) -> Farmer-Facing Output
 
-The deterministic policy remains authoritative. OpenAI serves strictly as an
+The deterministic policy remains authoritative. The LLM serves strictly as an
 explanation and evidence-synthesis layer. It CANNOT alter or override:
 - Final recommendation
 - Agronomic safety constraints
@@ -14,21 +14,25 @@ explanation and evidence-synthesis layer. It CANNOT alter or override:
 - Weather veto (DELAY)
 - Market-vs-agronomy conflict resolution
 
-If OpenAI is unavailable, rate-limited, times out, or fails:
-The system automatically falls back to deterministic rule templates.
-No multi-provider fallback chains (no xAI, Groq, Gemini).
+PROVIDER CHAIN:
+1. Primary Provider: OpenAI (gpt-4o-mini / configured model)
+2. Fallback Provider: xAI Grok (via https://api.x.ai/v1 with configured XAI_MODEL)
+3. Deterministic Template Fallback: Guaranteed rule-based fallback if all providers fail or are unconfigured.
+
 Every invocation is recorded in the agent_logs observability table.
-API keys are NEVER logged or stored.
+API keys and sensitive request credentials are NEVER logged or stored.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from llm.config import LLMConfig, get_llm_config
 from observability import database as obs
 
 _CACHE: dict[str, tuple[float, "LLMExplanationResult"]] = {}
@@ -49,14 +53,38 @@ class LLMExplanationResult:
     tokens: dict | None = None
     evidence_sources_count: int = 0
     error: str | None = None
+    api_attempt_latency_ms: float = 0.0
+    fallback_latency_ms: float = 0.0
+    total_latency_ms: float = 0.0
+    failure_category: str | None = None
+
+    @property
+    def explanation(self) -> str:
+        return self.text
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
+def _sanitize_log_text(text: str | None) -> str | None:
+    """Mask potential API keys or Bearer tokens in logs and error strings."""
+    if not text:
+        return text
+    sanitized = str(text)
+    sanitized = re.sub(r'sk-[a-zA-Z0-9_\-]{20,}', 'sk-***[REDACTED]***', sanitized)
+    sanitized = re.sub(r'xai-[a-zA-Z0-9_\-]{20,}', 'xai-***[REDACTED]***', sanitized)
+    sanitized = re.sub(r'Bearer\s+[a-zA-Z0-9_\-\.]{20,}', 'Bearer ***[REDACTED]***', sanitized, flags=re.IGNORECASE)
+    for env_var in ("OPENAI_API_KEY", "XAI_API_KEY"):
+        val = os.getenv(env_var)
+        if val and len(val) > 8:
+            sanitized = sanitized.replace(val, f"***[REDACTED_{env_var}]***")
+    return sanitized
+
+
 def deterministic_structured_explanation(state, evidence=None) -> dict[str, Any]:
     """Generate structured fallback explanation grounded in deterministic state."""
-    rec = getattr(state, "final_recommendation", "monitor").replace("_", " ")
+    rec_raw = getattr(state, "final_recommendation", None) or getattr(state, "recommendation", None) or "monitor"
+    rec = rec_raw.replace("_", " ")
     norm_rec = str(rec).lower()
 
     # Weather findings
@@ -254,7 +282,7 @@ def _messages(state, evidence) -> list[dict[str, str]]:
         "}"
     )
     payload = {
-        "deterministic_recommendation_locked": state.final_recommendation,
+        "deterministic_recommendation_locked": getattr(state, "final_recommendation", "monitor"),
         "decision_trace": getattr(state, "execution_trace", []),
         "safety_constraints": getattr(state, "safety_constraints", []),
         "crop": getattr(state, "crop", None).__dict__ if getattr(state, "crop", None) else {},
@@ -271,11 +299,29 @@ def _messages(state, evidence) -> list[dict[str, str]]:
     ]
 
 
-def _call_openai(api_key: str, model: str, messages: list[dict[str, str]]) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    """Execute request against OpenAI API using the official SDK."""
+def _parse_json_payload(raw_content: str) -> dict[str, Any]:
+    """Parse JSON payload handling markdown fencing if present."""
+    text = (raw_content or "{}").strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return json.loads(text)
+
+
+def _call_chat_completion(
+    api_key: str,
+    base_url: str | None,
+    model: str,
+    messages: list[dict[str, str]],
+    timeout: float = 30.0,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Execute chat completion request against an OpenAI-compatible API endpoint."""
     from openai import OpenAI
-    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "25")))
-    client = OpenAI(api_key=api_key, timeout=timeout)
+    client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
 
     try:
         response = client.chat.completions.create(
@@ -295,7 +341,7 @@ def _call_openai(api_key: str, model: str, messages: list[dict[str, str]]) -> tu
             raise
 
     raw_content = response.choices[0].message.content or "{}"
-    data = json.loads(raw_content)
+    data = _parse_json_payload(raw_content)
     tokens = {
         "prompt_tokens": getattr(response.usage, "prompt_tokens", None),
         "completion_tokens": getattr(response.usage, "completion_tokens", None),
@@ -304,14 +350,51 @@ def _call_openai(api_key: str, model: str, messages: list[dict[str, str]]) -> tu
     return data, tokens
 
 
+def _call_openai(
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Execute request against OpenAI API."""
+    timeout = float(os.getenv("OPENAI_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "30")))
+    base_url = os.getenv("OPENAI_BASE_URL", "").strip() or None
+    return _call_chat_completion(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        messages=messages,
+        timeout=timeout,
+    )
+
+
+def _call_grok(
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Execute request against xAI Grok API via https://api.x.ai/v1."""
+    timeout = float(os.getenv("XAI_TIMEOUT_SECONDS", os.getenv("LLM_TIMEOUT_SECONDS", "30")))
+    base_url = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1").strip() or "https://api.x.ai/v1"
+    return _call_chat_completion(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        messages=messages,
+        timeout=timeout,
+    )
+
+
 def _validate_and_sanitize(data: dict[str, Any], state, evidence) -> dict[str, Any]:
-    """Validate OpenAI response structure and enforce immutability of decision."""
+    """Validate LLM response structure and enforce immutability of decision."""
+    if not isinstance(data, dict):
+        raise ValueError("LLM response must be a JSON object")
+
     summary = str(data.get("summary") or "").strip()
     why = str(data.get("why_this_decision") or "").strip()
     guidance = str(data.get("immediate_guidance") or "").strip()
 
     if not summary or not why:
-        raise ValueError("OpenAI response missing summary or why_this_decision")
+        raise ValueError("LLM response missing summary or why_this_decision")
 
     context = data.get("additional_agronomic_context")
     if not isinstance(context, list):
@@ -349,18 +432,21 @@ def _validate_and_sanitize(data: dict[str, Any], state, evidence) -> dict[str, A
 
 
 def _cache_key(state, evidence) -> str:
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    config = get_llm_config()
     payload = {
         "recommendation": getattr(state, "final_recommendation", ""),
         "trace": getattr(state, "execution_trace", []),
-        "weather": getattr(state.weather, "__dict__", {}),
-        "soil": getattr(state.soil, "__dict__", {}),
-        "disease": getattr(state.disease, "__dict__", {}),
-        "advisory": getattr(state.advisory, "__dict__", {}),
-        "market": getattr(state.market, "__dict__", {}),
-        "crop": getattr(state.crop, "__dict__", {}),
+        "weather": getattr(getattr(state, "weather", None), "__dict__", {}),
+        "soil": getattr(getattr(state, "soil", None), "__dict__", {}),
+        "disease": getattr(getattr(state, "disease", None), "__dict__", {}),
+        "advisory": getattr(getattr(state, "advisory", None), "__dict__", {}),
+        "market": getattr(getattr(state, "market", None), "__dict__", {}),
+        "crop": getattr(getattr(state, "crop", None), "__dict__", {}),
         "evidence": evidence or [],
-        "model": model,
+        "primary_provider": config.primary_provider,
+        "fallback_provider": config.fallback_provider,
+        "openai_model": config.openai_model,
+        "xai_model": config.xai_model,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -400,8 +486,8 @@ def _log(run_id: str, result: LLMExplanationResult, error: str | None = None) ->
             "tokens": result.tokens,
             "latency_ms": result.latency_ms,
             "evidence_sources_count": result.evidence_sources_count,
-            "output_summary": result.text[:200] if result.text else "",
-            "error": error or result.error,
+            "output_summary": _sanitize_log_text(result.text[:200]) if result.text else "",
+            "error": _sanitize_log_text(error or result.error),
         },
         status,
         1.0 if result.status == "success" else 0.0,
@@ -409,8 +495,35 @@ def _log(run_id: str, result: LLMExplanationResult, error: str | None = None) ->
     )
 
 
+def _categorize_error(exc: Exception) -> str:
+    """Categorize an exception for observability telemetry."""
+    exc_str = f"{type(exc).__name__} {exc}".lower()
+    if isinstance(exc, TimeoutError) or "timeout" in exc_str or "timed out" in exc_str:
+        return "TIMEOUT"
+    if any(k in exc_str for k in ("401", "auth", "unauthorized", "api_key", "forbidden", "403")):
+        return "AUTHENTICATION_ERROR"
+    if any(k in exc_str for k in ("429", "rate", "quota")):
+        return "RATE_LIMITED"
+    if any(k in exc_str for k in ("connection", "connect", "dns", "network")):
+        return "NETWORK_ERROR"
+    if any(k in exc_str for k in ("json", "validation", "missing summary")):
+        return "MALFORMED_OUTPUT"
+    return "API_ERROR"
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """Determine whether an error is transient and eligible for bounded retry."""
+    cat = _categorize_error(exc)
+    # Auth errors and unconfigured identifiers should never be retried
+    if cat == "AUTHENTICATION_ERROR":
+        return False
+    if "not configured" in str(exc).lower():
+        return False
+    return True
+
+
 def explain_with_metadata(state, evidence=None) -> LLMExplanationResult:
-    """Generate source-grounded explanation via OpenAI or deterministic fallback."""
+    """Generate source-grounded explanation through provider chain (OpenAI -> Grok -> Template)."""
     evidence = evidence or []
     cache_key = _cache_key(state, evidence)
     cached = _cache_get(cache_key)
@@ -418,65 +531,182 @@ def explain_with_metadata(state, evidence=None) -> LLMExplanationResult:
         _log(state.run_id, cached)
         return cached
 
-    key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
-    if not key or not key.strip():
-        # No OpenAI key configured -> Direct deterministic fallback
-        structured = deterministic_structured_explanation(state, evidence)
-        result = LLMExplanationResult(
-            text=structured["summary"],
-            provider="deterministic",
-            model="rule-based-template",
-            status="deterministic",
-            latency_ms=0.0,
-            fallback_used=False,
-            structured_explanation=structured,
-            evidence_sources_count=len(evidence),
-            error=None,
-        )
-        _log(state.run_id, result)
-        return result
-
-    # Execute request to OpenAI
+    config = get_llm_config()
     messages = _messages(state, evidence)
-    start = time.perf_counter()
-    try:
-        data, tokens = _call_openai(key, model, messages)
-        structured = _validate_and_sanitize(data, state, evidence)
-        latency_ms = round((time.perf_counter() - start) * 1000, 2)
 
-        result = LLMExplanationResult(
-            text=structured["summary"],
-            provider="openai",
-            model=model,
-            status="success",
-            latency_ms=latency_ms,
-            fallback_used=False,
-            structured_explanation=structured,
-            tokens=tokens,
-            evidence_sources_count=len(evidence),
-        )
-        _cache_put(cache_key, result)
-        _log(state.run_id, result)
-        return result
-    except Exception as exc:
-        latency_ms = round((time.perf_counter() - start) * 1000, 2)
-        error_msg = f"OpenAI error: {type(exc).__name__}: {exc}"
+    # Build sequence of active providers to attempt
+    chain: list[str] = []
+    if config.primary_provider and config.primary_provider != "none":
+        chain.append(config.primary_provider)
+    if config.fallback_provider and config.fallback_provider != "none" and config.fallback_provider not in chain:
+        chain.append(config.fallback_provider)
+
+    chain_start = time.perf_counter()
+    accumulated_api_latency = 0.0
+    last_failure_category: str | None = None
+    last_error_msg: str | None = None
+    attempted_providers = 0
+
+    for provider in chain:
+        if provider == "openai":
+            key = config.openai_api_key
+            model = config.openai_model
+            timeout = config.openai_timeout_seconds
+
+            if not key:
+                last_failure_category = last_failure_category or "KEY_NOT_CONFIGURED"
+                last_error_msg = last_error_msg or "OPENAI_API_KEY omitted in environment; engaged fallback"
+                continue
+
+            attempted_providers += 1
+            max_attempts = max(1, 1 + config.max_retries)
+            for attempt in range(max_attempts):
+                call_start = time.perf_counter()
+                try:
+                    data, tokens = _call_openai(key, model, messages)
+                    structured = _validate_and_sanitize(data, state, evidence)
+                    attempt_latency = round((time.perf_counter() - call_start) * 1000, 2)
+                    total_latency = round((time.perf_counter() - chain_start) * 1000, 2)
+                    accumulated_api_latency += attempt_latency
+
+                    is_fallback = (provider != config.primary_provider)
+                    result = LLMExplanationResult(
+                        text=structured["summary"],
+                        provider="openai",
+                        model=model,
+                        status="success",
+                        latency_ms=total_latency,
+                        fallback_used=is_fallback,
+                        structured_explanation=structured,
+                        tokens=tokens,
+                        evidence_sources_count=len(evidence),
+                        api_attempt_latency_ms=accumulated_api_latency,
+                        fallback_latency_ms=0.0,
+                        total_latency_ms=total_latency,
+                        failure_category=None,
+                    )
+                    _cache_put(cache_key, result)
+                    _log(state.run_id, result)
+                    return result
+                except Exception as exc:
+                    attempt_latency = round((time.perf_counter() - call_start) * 1000, 2)
+                    accumulated_api_latency += attempt_latency
+                    cat = _categorize_error(exc)
+                    last_failure_category = cat
+                    clean_err = _sanitize_log_text(f"OpenAI error [{cat}]: {type(exc).__name__}: {exc}")
+                    last_error_msg = clean_err
+
+                    if not _is_retryable_error(exc) or attempt >= max_attempts - 1:
+                        break
+                    time.sleep(0.05)
+
+        elif provider == "grok":
+            key = config.xai_api_key
+            model = config.xai_model
+            timeout = config.xai_timeout_seconds
+
+            if not key:
+                last_failure_category = last_failure_category or "KEY_NOT_CONFIGURED"
+                last_error_msg = last_error_msg or "XAI_API_KEY omitted in environment; engaged fallback"
+                continue
+
+            if not model:
+                last_failure_category = "MODEL_NOT_CONFIGURED"
+                last_error_msg = "XAI_MODEL omitted in environment; engaged fallback"
+                continue
+
+            attempted_providers += 1
+            max_attempts = max(1, 1 + config.max_retries)
+            for attempt in range(max_attempts):
+                call_start = time.perf_counter()
+                try:
+                    data, tokens = _call_grok(key, model, messages)
+                    structured = _validate_and_sanitize(data, state, evidence)
+                    attempt_latency = round((time.perf_counter() - call_start) * 1000, 2)
+                    total_latency = round((time.perf_counter() - chain_start) * 1000, 2)
+                    accumulated_api_latency += attempt_latency
+
+                    is_fallback = (provider != config.primary_provider)
+                    result = LLMExplanationResult(
+                        text=structured["summary"],
+                        provider="grok",
+                        model=model,
+                        status="success",
+                        latency_ms=total_latency,
+                        fallback_used=is_fallback,
+                        structured_explanation=structured,
+                        tokens=tokens,
+                        evidence_sources_count=len(evidence),
+                        api_attempt_latency_ms=accumulated_api_latency,
+                        fallback_latency_ms=0.0,
+                        total_latency_ms=total_latency,
+                        failure_category=None,
+                    )
+                    _cache_put(cache_key, result)
+                    _log(state.run_id, result)
+                    return result
+                except Exception as exc:
+                    attempt_latency = round((time.perf_counter() - call_start) * 1000, 2)
+                    accumulated_api_latency += attempt_latency
+                    cat = _categorize_error(exc)
+                    last_failure_category = cat
+                    clean_err = _sanitize_log_text(f"xAI Grok error [{cat}]: {type(exc).__name__}: {exc}")
+                    last_error_msg = clean_err
+
+                    if not _is_retryable_error(exc) or attempt >= max_attempts - 1:
+                        break
+                    time.sleep(0.05)
+
+    # --------------------------------------------------------------------------
+    # Deterministic Template Fallback
+    # --------------------------------------------------------------------------
+    if config.template_fallback:
+        fb_start = time.perf_counter()
         structured = deterministic_structured_explanation(state, evidence)
+        fb_latency = round((time.perf_counter() - fb_start) * 1000, 2)
+
+        # If no external provider was attempted (e.g. no keys configured in env)
+        if attempted_providers == 0:
+            result = LLMExplanationResult(
+                text=structured["summary"],
+                provider="deterministic",
+                model="rule-based-template",
+                status="deterministic",
+                latency_ms=0.0,
+                fallback_used=False,
+                structured_explanation=structured,
+                evidence_sources_count=len(evidence),
+                api_attempt_latency_ms=0.0,
+                fallback_latency_ms=fb_latency,
+                total_latency_ms=fb_latency,
+                failure_category=last_failure_category or "KEY_NOT_CONFIGURED",
+                error=last_error_msg if last_failure_category and last_failure_category != "KEY_NOT_CONFIGURED" else None,
+            )
+            _log(state.run_id, result)
+            return result
+
+        # An external provider was configured and attempted, but failed
+        total_latency = round(accumulated_api_latency + fb_latency, 2)
         result = LLMExplanationResult(
             text=structured["summary"],
             provider="deterministic",
             model="rule-based-template",
             status="fallback",
-            latency_ms=latency_ms,
+            latency_ms=total_latency,
             fallback_used=True,
             structured_explanation=structured,
             evidence_sources_count=len(evidence),
-            error=error_msg,
+            api_attempt_latency_ms=accumulated_api_latency,
+            fallback_latency_ms=fb_latency,
+            total_latency_ms=total_latency,
+            failure_category=last_failure_category or "API_ERROR",
+            error=last_error_msg,
         )
-        _log(state.run_id, result, error=error_msg)
+        _log(state.run_id, result, error=last_error_msg)
         return result
+
+    # If template fallback is explicitly disabled and all providers failed
+    raise RuntimeError(f"All LLM providers failed and LLM_TEMPLATE_FALLBACK is false. Last error: {last_error_msg}")
 
 
 def explain(state, evidence=None) -> str:

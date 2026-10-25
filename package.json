@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "agrimind",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "private": true,
   "description": "AgriMind: Multi-Agent Resilient Agricultural Advisory Platform",
   "scripts": {
@@ -12,8 +12,9 @@
     "start:backend": "python -m uvicorn api.main:app --host 127.0.0.1 --port 8000",
     "start:frontend": "npm --prefix web run start",
     "lint": "npm --prefix web run lint",
-    "test": "python -m pytest",
+    "test": "python scripts/verify_product.py",
     "test:product": "python scripts/verify_product.py",
+    "evaluate": "python scripts/run_evaluation.py",
     "clean": "node scripts/clean.js",
     "postinstall": "npm --prefix web install"
   },

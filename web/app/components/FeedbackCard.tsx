@@ -10,6 +10,9 @@ interface FeedbackCardProps {
     farmer_action_taken: string;
     outcome_reported: string;
     comment: string;
+    days_post_application?: number;
+    reporter_type?: string;
+    outcome_category?: string;
   }) => Promise<boolean>;
 }
 
@@ -18,6 +21,9 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
   const [actionTaken, setActionTaken] = useState('');
   const [outcomeReported, setOutcomeReported] = useState('');
   const [comment, setComment] = useState('');
+  const [daysPostApp, setDaysPostApp] = useState('3');
+  const [reporterType, setReporterType] = useState('farmer_self_report');
+  const [outcomeCategory, setOutcomeCategory] = useState('positive_improvement');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -36,6 +42,9 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
         farmer_action_taken: `${rating ? `[Rating: ${rating.toUpperCase()}] ` : ''}${actionTaken}`,
         outcome_reported: outcomeReported,
         comment,
+        days_post_application: Number(daysPostApp) || 3,
+        reporter_type: reporterType,
+        outcome_category: outcomeCategory,
       });
       if (success) {
         setSubmitted(true);
@@ -55,7 +64,7 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
           Thank You for Closing the Feedback Loop!
         </h4>
         <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--semantic-success-text)' }}>
-          Your field observation has been logged to the AgriMind continuous agronomic audit registry.
+          Your field observation has been logged to the AgriMind continuous agronomic audit registry (Run ID: {runId}).
         </p>
       </div>
     );
@@ -115,6 +124,58 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
             />
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+            <div>
+              <label className="form-label" style={{ fontSize: '12px' }}>
+                Reporter Verification Role
+              </label>
+              <select
+                className="input"
+                style={{ fontSize: '12px', padding: '7px 8px' }}
+                value={reporterType}
+                onChange={e => setReporterType(e.target.value)}
+              >
+                <option value="farmer_self_report">Farmer Self-Report</option>
+                <option value="extension_worker">Agricultural Extension Officer</option>
+                <option value="kvk_agronomist">KVK Agronomist / Scientist</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label" style={{ fontSize: '12px' }}>
+                Follow-Up Interval
+              </label>
+              <select
+                className="input"
+                style={{ fontSize: '12px', padding: '7px 8px' }}
+                value={daysPostApp}
+                onChange={e => setDaysPostApp(e.target.value)}
+              >
+                <option value="1">1 Day (Immediate response)</option>
+                <option value="3">3 Days (Early check)</option>
+                <option value="7">7 Days (Full cycle evaluation)</option>
+                <option value="14">14 Days (Phenological progress)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label" style={{ fontSize: '12px' }}>
+                Outcome Classification
+              </label>
+              <select
+                className="input"
+                style={{ fontSize: '12px', padding: '7px 8px' }}
+                value={outcomeCategory}
+                onChange={e => setOutcomeCategory(e.target.value)}
+              >
+                <option value="positive_improvement">Positive Improvement</option>
+                <option value="no_change_neutral">No Observable Change</option>
+                <option value="phytotoxicity_negative">Phytotoxicity / Adverse</option>
+                <option value="unobserved">Pending Field Visit</option>
+              </select>
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
             <div>
               <label className="form-label" style={{ fontSize: '12px' }}>
@@ -140,6 +201,10 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
                 onChange={e => setComment(e.target.value)}
               />
             </div>
+          </div>
+
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4', background: 'var(--bg-surface-soft)', padding: '6px 10px', borderRadius: '4px' }}>
+            <strong>Research Methodology Notice:</strong> Farmer self-reported outcomes provide valuable qualitative field telemetry. To establish formal causal efficacy, observations undergo verification against weather logs and KVK agronomic trials.
           </div>
 
           {error && (

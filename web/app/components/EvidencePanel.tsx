@@ -84,27 +84,37 @@ export function EvidencePanel({ evidenceList = [] }: EvidencePanelProps) {
                 </div>
               </div>
 
-              {/* Relevance Badges */}
+              {/* Relevance Badges & Authority vs Applicability Differentiation */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: '2px 0' }}>
-                {badges.crop_match && (
-                  <span className="badge badge-success" style={{ fontSize: '10px' }}>
-                    Crop Match: {badges.crop_match}
+                <span className="badge badge-brand" style={{ fontSize: '10px', fontWeight: 700 }}>
+                  Institutional Authority: {Math.round(Number(reliability) * 100)}% (Statutory)
+                </span>
+                {badges.location_match && (
+                  <span
+                    className={`badge ${badges.location_match.toUpperCase() === 'HIGH' ? 'badge-success' : (badges.location_match.toUpperCase() === 'MODERATE' ? 'badge-mint' : 'badge-warning')}`}
+                    style={{ fontSize: '10px' }}
+                  >
+                    Regional Fit: {badges.location_match}
                   </span>
                 )}
-                {badges.location_match && (
-                  <span className="badge badge-brand" style={{ fontSize: '10px' }}>
-                    Regional Match: {badges.location_match}
+                {badges.crop_match && (
+                  <span className="badge badge-success" style={{ fontSize: '10px' }}>
+                    Crop Fit: {badges.crop_match}
                   </span>
                 )}
                 {badges.stage_match && (
                   <span className="badge badge-mint" style={{ fontSize: '10px' }}>
-                    Stage Match: {badges.stage_match}
+                    Stage Fit: {badges.stage_match}
                   </span>
                 )}
-                <span className="badge badge-neutral" style={{ fontSize: '10px' }}>
-                  Source Reliability: {reliability}
-                </span>
               </div>
+
+              {/* Regional Applicability Warning if Low Regional Fit */}
+              {badges.location_match && badges.location_match.toUpperCase() === 'LOW' && (
+                <div style={{ padding: '6px 10px', background: 'rgba(217, 119, 6, 0.08)', borderLeft: '3px solid #d97706', borderRadius: '4px', fontSize: '11px', color: '#b45309' }}>
+                  <strong>National Guideline Baseline:</strong> High statutory authority, but regional applicability is generalized. For localized spray intervals and district varieties, consult the nearest TNAU KVK center.
+                </div>
+              )}
 
               {/* Text Preview or Full Text */}
               <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>

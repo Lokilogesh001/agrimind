@@ -48,10 +48,11 @@ web/CLAUDE.md
 *.tar.gz
 *.tar.bz2
 
-# ML artifacts & raw datasets
-ml/artifacts/
+# ML artifacts & raw datasets (preserve validated production checkpoint best.pt)
+ml/artifacts/*
+!ml/artifacts/best.pt
 ml/data/
-*.pt
+evaluation/datasets/
 *.pth
 *.onnx
 *.bin

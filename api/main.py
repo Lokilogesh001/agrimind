@@ -42,7 +42,7 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
-class AdvisoryRequest(BaseModel):
+class BaseAdvisoryRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     lat: float | None = Field(default=None, ge=-90, le=90)
@@ -56,8 +56,6 @@ class AdvisoryRequest(BaseModel):
     soil_mode: str | None = Field(default=None, max_length=50)
     current_price: float = Field(default=0, ge=0)
     price_history: list[float] = Field(default_factory=list, max_length=365)
-    weather_override: dict | None = None
-    disease_override: dict | None = None
     soil_type: str = Field(default="", max_length=100)
     farm: dict = Field(default_factory=dict)
     farm_area: float | None = Field(default=None, ge=0)
@@ -74,13 +72,52 @@ class AdvisoryRequest(BaseModel):
         return values
 
 
+class AdvisoryRequest(BaseAdvisoryRequest):
+    """Public advisory request schema.
+
+    Excludes arbitrary synthetic overrides by default.
+    Rejected unconditionally when ENVIRONMENT=production.
+    In development, only allowed if ALLOW_TEST_OVERRIDES=true.
+    """
+    weather_override: dict | None = None
+    disease_override: dict | None = None
+
+    @field_validator("weather_override", "disease_override")
+    @classmethod
+    def validate_overrides(cls, value: dict | None, info) -> dict | None:
+        if value is not None:
+            env = os.getenv("ENVIRONMENT", "development").lower()
+            if env in ("production", "prod"):
+                raise ValueError(
+                    f"'{info.field_name}' is forbidden in production. "
+                    "Public advisory requests cannot inject synthetic overrides."
+                )
+            allow_flag = os.getenv("ALLOW_TEST_OVERRIDES", "false").lower() in ("1", "true", "yes")
+            if not allow_flag:
+                raise ValueError(
+                    f"'{info.field_name}' is disabled in this environment. "
+                    "Public requests cannot supply synthetic overrides. "
+                    "Set ALLOW_TEST_OVERRIDES=true for local testing or use /api/internal/test-advisory."
+                )
+        return value
+
+
+class InternalAdvisoryRequest(BaseAdvisoryRequest):
+    """Internal test request schema with explicit support for synthetic overrides."""
+    weather_override: dict | None = None
+    disease_override: dict | None = None
+
+
 class FeedbackRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     run_id: str
     farmer_action_taken: str = Field(max_length=200)
     outcome_reported: str = Field(default="", max_length=1000)
     comment: str = Field(default="", max_length=2000)
+    days_post_application: int | None = Field(default=None, ge=0, le=365)
+    reporter_type: str = Field(default="farmer_self_reported", max_length=100)
+    outcome_category: str = Field(default="partially_improved", max_length=100)
 
 
 def _serialize(state):
@@ -132,14 +169,23 @@ def _serialize(state):
         )
 
     from agents.weather_agent import get_weather_risk_level
+    w_avail = getattr(state.weather, "is_available", True) and getattr(state.weather, "status", "AVAILABLE") in ("AVAILABLE", "CACHED", "STALE_CACHE")
     w_score = getattr(state.weather, "rainfall_risk", 0.0)
     weather_risk_data = {
-        "score": w_score,
-        "level": getattr(state.weather, "risk_level", None) or get_weather_risk_level(w_score),
+        "score": w_score if w_avail else None,
+        "level": getattr(state.weather, "risk_level", "UNKNOWN") if w_avail else "UNKNOWN",
+        "status": getattr(state.weather, "status", "AVAILABLE"),
+        "is_available": getattr(state.weather, "is_available", True),
+        "is_estimated": getattr(state.weather, "is_estimated", False),
+        "freshness_status": getattr(state.weather, "freshness_status", "REAL_DATA"),
+        "observation_time": getattr(state.weather, "observation_time", None),
+        "retrieval_time": getattr(state.weather, "retrieval_time", None),
+        "source": getattr(state.weather, "source", "open_meteo"),
         "explanation": getattr(state.weather, "risk_explanation", ""),
         "precipitation_probability": getattr(state.weather, "precipitation_probability", None),
         "rainfall_amount_mm": getattr(state.weather, "rainfall_amount_mm", None),
     }
+
 
     soil_status_data = {
         "nutrient_status": getattr(state.soil, "nutrient_status", "UNAVAILABLE"),
@@ -155,23 +201,46 @@ def _serialize(state):
     is_mismatch = getattr(state.disease, "crop_mismatch", False)
     d_conf = getattr(state.disease, "confidence", 0.0)
     has_disease = bool(getattr(state.disease, "predicted_class", None))
+    d_status = getattr(state.disease, "status", "AVAILABLE")
 
-    disease_gate_data = {
-        "confidence": d_conf,
-        "confidence_percentage": round(d_conf * 100),
-        "confidence_gate": "PASSED" if d_conf >= 0.60 else ("NOT_APPLICABLE" if not has_disease else "FAILED"),
-        "crop_match": "FAILED" if is_mismatch else ("NOT_APPLICABLE" if not has_disease else "PASSED"),
-        "action": "BLOCKED" if (not getattr(state.disease, "actionable", False) and has_disease) else ("ALLOWED" if getattr(state.disease, "actionable", False) else "INACTIVE"),
-        "reason": (
-            f"Predicted crop is {c_det} but selected crop is {c_sel}."
-            if is_mismatch
-            else (
-                f"The disease signal is below the 0.60 confidence gate."
-                if (has_disease and d_conf < 0.60)
-                else (getattr(state.disease, "block_reason", "") or "Crop match")
-            )
-        ),
-    }
+    if d_status == "MODEL_UNAVAILABLE":
+        disease_gate_data = {
+            "confidence": 0.0,
+            "confidence_percentage": 0,
+            "confidence_gate": "UNAVAILABLE",
+            "crop_match": "NOT_APPLICABLE",
+            "action": "BLOCKED",
+            "reason": "Disease diagnostic model checkpoint is unavailable. Image inference cannot run.",
+            "status": "MODEL_UNAVAILABLE",
+        }
+    elif d_status == "INVALID_IMAGE":
+        disease_gate_data = {
+            "confidence": 0.0,
+            "confidence_percentage": 0,
+            "confidence_gate": "INVALID_INPUT",
+            "crop_match": "NOT_APPLICABLE",
+            "action": "BLOCKED",
+            "reason": "Uploaded leaf image is corrupted, malformed, or unsupported.",
+            "status": "INVALID_IMAGE",
+        }
+    else:
+        disease_gate_data = {
+            "confidence": d_conf,
+            "confidence_percentage": round(d_conf * 100),
+            "confidence_gate": "PASSED" if d_conf >= 0.60 else ("NOT_APPLICABLE" if not has_disease else "FAILED"),
+            "crop_match": "FAILED" if is_mismatch else ("NOT_APPLICABLE" if not has_disease else "PASSED"),
+            "action": "BLOCKED" if (not getattr(state.disease, "actionable", False) and has_disease) else ("ALLOWED" if getattr(state.disease, "actionable", False) else "INACTIVE"),
+            "reason": (
+                f"Predicted crop is {c_det} but selected crop is {c_sel}."
+                if is_mismatch
+                else (
+                    f"The disease signal is below the 0.60 confidence gate."
+                    if (has_disease and d_conf < 0.60)
+                    else (getattr(state.disease, "block_reason", "") or "Crop match")
+                )
+            ),
+            "status": d_status,
+        }
 
     nearby_stores_data = []
     farm_lat = state.raw_inputs.get("lat")
@@ -198,6 +267,188 @@ def _serialize(state):
         except Exception:
             nearby_stores_data = []
 
+    from data_sources.treatments import evaluate_treatment_permission_state
+    perm = evaluate_treatment_permission_state(
+        crop=getattr(state.crop, "crop", ""),
+        disease_result=state.disease,
+        weather_result=state.weather,
+        final_action=state.final_recommendation or "monitor",
+        safety_constraints=getattr(state, "safety_constraints", []),
+    )
+    perm_dict = perm.to_dict()
+    state.treatment_permission = perm_dict
+
+    norm_rec = str(state.final_recommendation or "monitor").lower()
+    w_risk = getattr(state.weather, "rainfall_risk", 0.0)
+
+    if perm.status in ("DEFERRED_MODEL_UNAVAILABLE", "DEFERRED_INVALID_IMAGE"):
+        workflow_steps = [
+            {
+                "timeframe": "NOW",
+                "label": "NOW · Immediate",
+                "title": "Hold Chemical Sprays & Inspect Foliage",
+                "desc": perm.action_instruction,
+                "badge": "DIAGNOSTIC HOLD",
+            },
+            {
+                "timeframe": "NEXT",
+                "label": "NEXT · Cultural Care",
+                "title": "Perform Cultural Sanitation",
+                "desc": perm.cultural_measures or "Prune infected leaves and avoid working in wet canopies.",
+                "badge": "CULTURAL CONTROL",
+            },
+            {
+                "timeframe": "THEN",
+                "label": "THEN · Re-evaluation",
+                "title": "Consult Extension Officer",
+                "desc": perm.reassessment_trigger,
+                "badge": "EXTENSION ADVICE",
+            },
+        ]
+    elif perm.status == "DEFERRED_WEATHER":
+        workflow_steps = [
+            {
+                "timeframe": "NOW",
+                "label": "NOW · Immediate",
+                "title": "Hold Chemical Sprays & Inspect Drainage",
+                "desc": f"Rainfall hazard ({w_risk:.2f}) threatens wash-off and leaching. Postpone all fungicide applications. Clear drainage bunds.",
+                "badge": "WEATHER DELAY",
+            },
+            {
+                "timeframe": "NEXT",
+                "label": "NEXT · Cultural Care",
+                "title": "Perform Non-Chemical Sanitation",
+                "desc": perm.cultural_measures or "Prune and isolate infected foliage. Avoid overhead irrigation and stay out of wet canopies.",
+                "badge": "CULTURAL CONTROL",
+            },
+            {
+                "timeframe": "THEN",
+                "label": "THEN · Post-Rain",
+                "title": f"Re-evaluate in {perm.rain_free_window_hours}h Rain-Free Window",
+                "desc": "Check sky conditions once the weather system passes. Resume registered plant protection only when canopy is dry.",
+                "badge": "STANDBY",
+            },
+        ]
+    elif perm.status == "PERMITTED" and perm.candidate_treatment:
+        t = perm.candidate_treatment
+        workflow_steps = [
+            {
+                "timeframe": "NOW",
+                "label": "NOW · Immediate",
+                "title": f"Prepare {t.formulation}",
+                "desc": f"Measure {t.dosage} for foliar application ({t.water_volume_per_acre} per acre). Wear mandatory PPE ({', '.join(t.ppe_requirements[:2])}).",
+                "badge": "PHYTOSANITARY ACTION",
+            },
+            {
+                "timeframe": "NEXT",
+                "label": "NEXT · Application",
+                "title": "Apply Under Favorable Skies",
+                "desc": f"Spray thoroughly covering upper and lower leaf surfaces. Observe {t.pre_harvest_interval_days}-day Pre-Harvest Interval (PHI).",
+                "badge": "FIELD SPRAY",
+            },
+            {
+                "timeframe": "THEN",
+                "label": "THEN · Monitoring",
+                "title": "Assess Foliage in 5–7 Days",
+                "desc": "Inspect new growth to confirm pathogen containment. Rogue any remaining diseased material.",
+                "badge": "SCOUTING",
+            },
+        ]
+    elif norm_rec.startswith("delay"):
+        workflow_steps = [
+            {
+                "timeframe": "NOW",
+                "label": "NOW · Immediate",
+                "title": "Suspend Field Chemical Applications",
+                "desc": "Immediately postpone all fertilizer broadcasting, foliar spraying, and chemical applications due to imminent precipitation.",
+                "badge": "WEATHER HOLD",
+            },
+            {
+                "timeframe": "NEXT",
+                "label": "NEXT · Field Protection",
+                "title": "Inspect Farm Drainage Channels",
+                "desc": "Ensure drainage furrows and field bunds are clear to avoid water stagnation around root zones during rainfall.",
+                "badge": "DRAINAGE",
+            },
+            {
+                "timeframe": "THEN",
+                "label": "THEN · Resumption",
+                "title": "Re-check Weather in 24–48 Hours",
+                "desc": "Resume planned agrochemical interventions once precipitation risk clears and soil surface is trafficable.",
+                "badge": "REASSESSMENT",
+            },
+        ]
+    elif "fertilizer" in norm_rec:
+        nut = getattr(state.soil, "priority_nutrient", "Nutrient") or "Balanced"
+        workflow_steps = [
+            {
+                "timeframe": "NOW",
+                "label": "NOW · Immediate",
+                "title": f"Prepare {nut.upper()} Replenishment",
+                "desc": f"Prepare verified fertilizer formulation to correct measured {nut} deficiency under current soil moisture.",
+                "badge": "NUTRITION",
+            },
+            {
+                "timeframe": "NEXT",
+                "label": "NEXT · Field Application",
+                "title": "Apply During Cool Field Hours",
+                "desc": "Apply fertilizer in early morning or late afternoon into moist soil to minimize volatilization and root burn.",
+                "badge": "TOP DRESSING",
+            },
+            {
+                "timeframe": "THEN",
+                "label": "THEN · Follow-up",
+                "title": "Assess Crop Response in 14 Days",
+                "desc": "Observe canopy color and new shoot vigor to confirm corrective nutrient absorption.",
+                "badge": "VERIFICATION",
+            },
+        ]
+    else:
+        workflow_steps = [
+            {
+                "timeframe": "NOW",
+                "label": "NOW · Immediate",
+                "title": "Conduct Routine Field Scouting",
+                "desc": f"Inspect your {getattr(state.crop, 'crop', 'crop')} foliage for initial pest or disease symptoms and ensure uniform canopy development.",
+                "badge": "MONITORING",
+            },
+            {
+                "timeframe": "NEXT",
+                "label": "NEXT · Irrigation",
+                "title": "Maintain Scheduled Irrigation",
+                "desc": "Verify soil moisture profile at the root zone and adhere to standard water management practice.",
+                "badge": "WATER CARE",
+            },
+            {
+                "timeframe": "THEN",
+                "label": "THEN · Growth Phase",
+                "title": "Monitor Crop Stage Transition",
+                "desc": "Prepare for upcoming phenological stage nutrition and record crop growth observations.",
+                "badge": "CROP CARE",
+            },
+        ]
+
+    operational_plan = {
+        "primary_action": state.final_recommendation,
+        "treatment_permission": perm_dict,
+        "workflow_steps": workflow_steps,
+        "rain_free_window_hours": perm.rain_free_window_hours,
+        "reassessment_condition": perm.reassessment_trigger,
+        "authority_reference": perm.authority_reference,
+    }
+    state.operational_plan = operational_plan
+
+    market_dict = dict(state.market.__dict__)
+    user_price = state.raw_inputs.get("current_price")
+    if user_price and float(user_price) > 0:
+        market_dict["benchmark_price"] = float(user_price)
+        if state.market.status in ("USER_SUPPLIED", "DEMO_DATA") or state.market.source == "caller_provided":
+            market_dict["observed_price"] = None
+    elif state.market.status == "UNAVAILABLE":
+        market_dict["observed_price"] = None
+        market_dict["benchmark_price"] = None
+        market_dict["current_price"] = None
+
     return {
         "run_id": state.run_id,
         "recommendation": state.final_recommendation,
@@ -207,8 +458,11 @@ def _serialize(state):
         "confidence": state.confidence,
         "explanation": explanation,
         "llm_explanation": llm_structured,
+        "operational_plan": operational_plan,
+        "treatment_permission": perm_dict,
         "decision_stability_score": getattr(state, "decision_stability_score", 0.0),
         "stability_level": getattr(state, "stability_level", "INSUFFICIENT"),
+        "decision_stability_breakdown": getattr(state, "decision_stability_breakdown", {}) or {},
         "evidence_quality_score": getattr(state, "evidence_quality_score", 0.0),
         "evidence_quality_level": getattr(state, "evidence_quality_level", "INSUFFICIENT"),
         "evidence_quality_breakdown": getattr(state, "evidence_quality_breakdown", {}) or {},
@@ -231,6 +485,8 @@ def _serialize(state):
             "longitude": state.raw_inputs.get("lon"),
             "geocoding_source": state.raw_inputs.get("geocoding_source") or "unspecified",
             "geocoding_status": state.raw_inputs.get("geocoding_status") or "AVAILABLE",
+            "precision": state.raw_inputs.get("geocoding_precision") or ("farm_gps" if farm_lat is not None else "city_centroid"),
+            "precision_note": "Coordinates represent regional municipal centroid. For farm-level precision, enter exact GPS coordinates.",
         },
         "llm": {
             **llm_metadata,
@@ -240,6 +496,10 @@ def _serialize(state):
             "decision_authority": "Deterministic Agronomic Safety Engine",
             "status": llm_result.status,
             "latency_ms": llm_result.latency_ms,
+            "api_attempt_latency_ms": getattr(llm_result, "api_attempt_latency_ms", 0.0),
+            "fallback_latency_ms": getattr(llm_result, "fallback_latency_ms", 0.0),
+            "total_latency_ms": getattr(llm_result, "total_latency_ms", llm_result.latency_ms),
+            "failure_category": getattr(llm_result, "failure_category", None),
             "fallback_used": llm_result.fallback_used,
             "evidence_sources_count": len(evidence),
             "tokens": llm_result.tokens,
@@ -249,7 +509,7 @@ def _serialize(state):
         "soil": state.soil.__dict__,
         "disease": state.disease.__dict__,
         "advisory": state.advisory.__dict__,
-        "market": state.market.__dict__,
+        "market": market_dict,
         "conflicts": state.conflicts,
         "execution_trace": state.execution_trace,
         "evidence": evidence,
@@ -265,6 +525,13 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "agrimind-api", "version": "1.1.0"}
+
+
+@app.get("/health/model")
+def model_health():
+    """Explicit model readiness and health reporting endpoint."""
+    from ml.disease_model import get_model_health
+    return get_model_health()
 
 
 @app.get("/api/crops")
@@ -376,6 +643,33 @@ def get_nearby_stores(
 @app.post("/api/advisory")
 def advisory(payload: AdvisoryRequest):
     # Validate location when location_name is submitted
+    if payload.location_name is not None and not payload.location_name.strip():
+        raise HTTPException(status_code=422, detail="Farm location name cannot be empty.")
+    if payload.location_name and payload.lat is None:
+        geo = resolve_location(payload.location_name)
+        if geo.get("status") in ("INVALID", "NOT_FOUND", "ERROR"):
+            raise HTTPException(
+                status_code=422,
+                detail=geo.get("error") or f"Unable to resolve location '{payload.location_name}'.",
+            )
+
+    try:
+        return _serialize(run_advisory(payload.model_dump()))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/internal/test-advisory")
+def internal_test_advisory(payload: InternalAdvisoryRequest):
+    """Internal test endpoint explicitly supporting synthetic overrides for automated integration testing."""
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if env in ("production", "prod"):
+        raise HTTPException(
+            status_code=403,
+            detail="Internal test endpoint is disabled in production.",
+        )
     if payload.location_name is not None and not payload.location_name.strip():
         raise HTTPException(status_code=422, detail="Farm location name cannot be empty.")
     if payload.location_name and payload.lat is None:

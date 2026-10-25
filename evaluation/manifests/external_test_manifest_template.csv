@@ -1,0 +1,3 @@
+image_path,original_label,mapped_class,source_dataset,provenance,capture_setting,group_id,sha256,file_size_bytes
+field_batch_01/tomato_sample_001.jpg,Tomato Early Blight,Tomato___Early_blight,KVK_Field_Trial_2026,"ICAR-KVK Baramati, Pune District, Maharashtra","Open-field canopy, natural daylight, unwashed foliage",plot_4_plant_12,e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855,1048576
+field_batch_01/corn_sample_002.jpg,Corn Common Rust,Corn_(maize)___Common_rust_,KVK_Field_Trial_2026,"ICAR-KVK Baramati, Pune District, Maharashtra","Open-field canopy, overcast, mid-growth stage",plot_2_plant_05,f4c0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b999,1245820
