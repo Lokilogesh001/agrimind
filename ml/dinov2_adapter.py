@@ -211,6 +211,7 @@ class DINOv2LoRAPredictor:
     """Inference predictor for DINOv2-Small LoRA candidate."""
 
     DEFAULT_CHECKPOINT = "ml/research/pretrained_benchmark/lora_experiments/checkpoints/dinov2_lora_r4_b4_best.pt"
+    ALT_CHECKPOINT = "ml/artifacts/dinov2_lora_r4_b4_best.pt"
     EXPECTED_SHA256 = "8ae555c2054fd518edb5382519cca4fba9d2bff4bc039636fddc4b14edf1aa68"
 
     def __init__(
@@ -219,7 +220,17 @@ class DINOv2LoRAPredictor:
         confidence_gate: float = 0.60,
         device: str | None = None,
     ) -> None:
-        ckpt_str = checkpoint or self.DEFAULT_CHECKPOINT
+        if checkpoint:
+            ckpt_str = checkpoint
+        elif os.getenv("DINOV2_CHECKPOINT_PATH"):
+            ckpt_str = os.getenv("DINOV2_CHECKPOINT_PATH")
+        elif Path(self.DEFAULT_CHECKPOINT).is_file():
+            ckpt_str = self.DEFAULT_CHECKPOINT
+        elif Path(self.ALT_CHECKPOINT).is_file():
+            ckpt_str = self.ALT_CHECKPOINT
+        else:
+            ckpt_str = self.DEFAULT_CHECKPOINT
+
         ckpt_path = Path(ckpt_str)
         if not ckpt_path.is_file():
             raise FileNotFoundError(f"DINOv2 LoRA checkpoint not found: {ckpt_str}")
@@ -472,8 +483,17 @@ class DINOv2LoRAPredictor:
 
 
 def get_dinov2_health(checkpoint_path: str | None = None) -> dict[str, Any]:
-    """Inspect and report DINOv2 LoRA model readiness and checkpoint integrity."""
-    ckpt_str = checkpoint_path or DINOv2LoRAPredictor.DEFAULT_CHECKPOINT
+    if checkpoint_path:
+        ckpt_str = checkpoint_path
+    elif os.getenv("DINOV2_CHECKPOINT_PATH"):
+        ckpt_str = os.getenv("DINOV2_CHECKPOINT_PATH")
+    elif Path(DINOv2LoRAPredictor.DEFAULT_CHECKPOINT).is_file():
+        ckpt_str = DINOv2LoRAPredictor.DEFAULT_CHECKPOINT
+    elif Path(DINOv2LoRAPredictor.ALT_CHECKPOINT).is_file():
+        ckpt_str = DINOv2LoRAPredictor.ALT_CHECKPOINT
+    else:
+        ckpt_str = DINOv2LoRAPredictor.DEFAULT_CHECKPOINT
+
     ckpt_path = Path(ckpt_str)
 
     if not ckpt_path.is_file():
