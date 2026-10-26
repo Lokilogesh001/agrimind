@@ -1,0 +1,19 @@
+{
+  "base_checkpoint": "ml/artifacts/best.pt",
+  "base_checkpoint_sha256": "c362915969e3d08c86cfa687bb3bbc51e2549be3ade3e0addb5bcc12560ed58e",
+  "train_manifest": "evaluation/manifests/field_train_manifest.csv",
+  "val_manifest": "evaluation/manifests/field_val_manifest.csv",
+  "train_samples_count": 419,
+  "val_samples_count": 108,
+  "warmup_epochs": 3,
+  "finetune_epochs": 5,
+  "batch_size": 16,
+  "warmup_lr": 0.001,
+  "finetune_lr": 0.0001,
+  "weight_decay": 0.0001,
+  "seed": 42,
+  "output_directory": "ml/research/candidate_v1",
+  "best_checkpoint": "ml\\research\\candidate_v1\\checkpoint_best_val.pt",
+  "best_val_macro_f1": 0.3038,
+  "pre_finetune_macro_f1": 0.1815
+}

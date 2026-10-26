@@ -1,0 +1,84 @@
+{
+  "project": "AgriMind Unified 38-Class Disease Model Optimization",
+  "base_architecture": "MobileNetV3-Large",
+  "num_classes": 38,
+  "hardware_target": "NVIDIA GeForce RTX 3050 Laptop GPU (4 GB VRAM)",
+  "production_checkpoint": {
+    "path": "ml/artifacts/best.pt",
+    "sha256": "c362915969e3d08c86cfa687bb3bbc51e2549be3ade3e0addb5bcc12560ed58e",
+    "status": "PRESERVED_READ_ONLY"
+  },
+  "datasets": {
+    "train_manifest": "evaluation/manifests/field_train_manifest.csv",
+    "train_samples": 419,
+    "train_classes_count": 28,
+    "val_manifest": "evaluation/manifests/field_val_manifest.csv",
+    "val_samples": 108,
+    "val_classes_count": 27,
+    "unrepresented_in_train": 10,
+    "unrepresented_in_val": 11,
+    "locked_benchmarks": [
+      "evaluation/manifests/plantdoc_test_manifest.csv",
+      "evaluation/manifests/independent_field_test_manifest.csv"
+    ]
+  },
+  "predeclared_selection_rule": {
+    "formula": "Score = 0.40 * Macro_F1_eval + 0.30 * Accuracy + 0.15 * (1.0 - ECE) + 0.15 * (1.0 - Cross_Crop_Error_Rate)",
+    "guardrails": [
+      "Validation Accuracy >= 0.2037 (Baseline)",
+      "Validation Macro-F1 >= 0.1815 (Baseline)",
+      "No regression on staple crops (Corn, Potato, Tomato)",
+      "Multi-seed stability: Macro-F1 std < 0.05",
+      "Strict preservation of 38-class MobileNetV3-Large production interface"
+    ]
+  },
+  "stages": {
+    "stage_a": {
+      "name": "Learning Rate and Regularization Grid Search",
+      "total_combinations": 36,
+      "warmup_lrs": [0.00005, 0.0001, 0.0002],
+      "finetune_lrs": [0.00001, 0.00002, 0.00005, 0.0001],
+      "weight_decays": [0.00001, 0.0001, 0.001],
+      "epochs": { "warmup": 3, "finetune": 6 },
+      "batch_size": 8,
+      "seed": 42
+    },
+    "stage_b": {
+      "name": "Training Strategy Search",
+      "comparisons": [
+        "Balanced sampler vs Shuffle",
+        "Backbone unfreezing depth (blocks 13-16 vs blocks 10-16 vs full)",
+        "Extended training duration (5 warmup + 10 finetune)",
+        "Scheduler dynamics (CosineAnnealing vs StepLR)"
+      ]
+    },
+    "stage_c": {
+      "name": "Foliar Augmentation Policy Search",
+      "comparisons": [
+        "Standard field augmentations (ColorJitter + RandomResizedCrop + Affine)",
+        "Mild field augmentations (reduced crop/jitter)",
+        "Strong realistic field augmentations (Perspective + Rotation + Contrast)"
+      ]
+    },
+    "stage_d": {
+      "name": "Loss Function and Regularization Search",
+      "comparisons": [
+        "Class-weighted label-smoothed CE (smoothing=0.05)",
+        "Class-weighted label-smoothed CE (smoothing=0.10)",
+        "Unweighted standard CE",
+        "Class-weighted Focal Loss (gamma=2.0)"
+      ]
+    },
+    "stage_finalists": {
+      "name": "Multi-Seed Verification and Calibration Analysis",
+      "seeds": [42, 100, 2026],
+      "evaluations": [
+        "Validation Accuracy with Wilson 95% CI",
+        "Macro-F1 (27 evaluated classes) and Macro-F1 (all 38 classes)",
+        "Expected Calibration Error (ECE) and MCE across 10 bins",
+        "Cross-crop and disease-vs-healthy error decomposition",
+        "Per-class confusion analysis on critical crop diseases"
+      ]
+    }
+  }
+}

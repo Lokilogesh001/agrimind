@@ -86,6 +86,8 @@ export default function Home() {
     currentPrice: string;
     priceHistory: string;
     image: File | null;
+    diseaseModel?: string;
+    leafCropSelection?: string;
   }) => {
     setLoading(true);
     setError('');
@@ -153,6 +155,8 @@ export default function Home() {
         if (payload.priceHistory) body.append('price_history', payload.priceHistory);
         if (payload.farmArea) body.append('farm_area', payload.farmArea);
         if (payload.irrigationMethod) body.append('irrigation_method', payload.irrigationMethod);
+        if (payload.diseaseModel) body.append('disease_model', payload.diseaseModel);
+        if (payload.leafCropSelection) body.set('crop', payload.leafCropSelection);
         body.append('image', payload.image);
 
         const res = await fetch(`${API}/api/advisory/upload`, {
@@ -172,6 +176,7 @@ export default function Home() {
           soil_mode: effectiveSoilMode,
           current_price: payload.currentPrice ? Number(payload.currentPrice) : 0,
           price_history: payload.priceHistory ? payload.priceHistory.split(',').filter(Boolean).map(Number) : [],
+          disease_model: payload.diseaseModel || undefined,
         };
         if (nVal !== null) reqPayload.n = nVal;
         if (pVal !== null) reqPayload.p = pVal;

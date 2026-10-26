@@ -25,6 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from sqlalchemy.pool import StaticPool
+from sqlalchemy.engine.url import make_url
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///agrimind_local.db")
 
@@ -44,13 +45,14 @@ def _get_session_factory():
     This also avoids binding the DB to the import-time working directory.
     """
     global _engine, _SessionLocal
-    url = os.environ.get("DATABASE_URL", DATABASE_URL)
-    if _engine is None or str(_engine.url) != url:
-        connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+    url_str = os.environ.get("DATABASE_URL", DATABASE_URL)
+    target_url = make_url(url_str)
+    if _engine is None or _engine.url != target_url:
+        connect_args = {"check_same_thread": False} if target_url.drivername.startswith("sqlite") else {}
         engine_kwargs = {"echo": False, "future": True, "connect_args": connect_args}
-        if url in ("sqlite:///:memory:", "sqlite://", "sqlite:///"):
+        if url_str in ("sqlite:///:memory:", "sqlite://", "sqlite:///") or target_url.database == ":memory:":
             engine_kwargs["poolclass"] = StaticPool
-        _engine = create_engine(url, **engine_kwargs)
+        _engine = create_engine(target_url, **engine_kwargs)
         _SessionLocal = sessionmaker(bind=_engine, future=True)
     return _SessionLocal
 
@@ -506,4 +508,3 @@ def get_run_trail(run_id: str) -> dict:
                 for f in feedbacks
             ],
         }
-

@@ -1,0 +1,9 @@
+{
+  "python_version": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+  "platform": "win32",
+  "torch_version": "2.11.0+cu128",
+  "torch_cuda_available": true,
+  "cuda_device_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "cuda_vram_gb": 3.9995,
+  "timestamp_utc": "2026-10-26T05:26:37.517613+00:00"
+}

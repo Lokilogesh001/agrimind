@@ -124,6 +124,13 @@ class DiseaseResult(AgentResult):
     classifier_score: float = 0.0
     severity_qualification: str = ""
     treatment_details: Optional[dict] = None
+    model_architecture: str = "DINOv2-Small-LoRA"
+    model_version: str = "r4_b4"
+    crop_concordance: Optional[float] = None
+    crop_aware_mode: bool = False
+    ambiguous: bool = False
+    recommendation_note: Optional[str] = None
+    top_alternatives: list[dict] = field(default_factory=list)
 
 
 @dataclass

@@ -56,6 +56,13 @@ interface DiseaseActionCardProps {
     normalized_disease?: string;
     block_reason?: string;
     status?: string;
+    model_architecture?: string;
+    model_version?: string;
+    crop_concordance?: number | null;
+    crop_aware_mode?: boolean;
+    ambiguous?: boolean;
+    recommendation_note?: string | null;
+    top_alternatives?: Array<{ class: string; confidence?: number; conditioned_confidence?: number; flat_confidence?: number }>;
   } | null;
   crop?: string;
   evidenceText?: string;
@@ -289,7 +296,7 @@ export function DiseaseActionCard({
             <div style={{ fontSize: '13.5px', fontWeight: 700, color: isLowConfidence ? 'var(--semantic-warning)' : 'var(--text-primary)' }}>
               {confPercent}%
               <span style={{ fontSize: '10.5px', fontWeight: 400, color: 'var(--text-muted)', display: 'block' }}>
-                MobileNetV3 class probability
+                {disease.model_architecture || 'MobileNetV3-Large'} {disease.model_version ? `(${disease.model_version})` : ''}
               </span>
             </div>
           </div>
@@ -324,6 +331,109 @@ export function DiseaseActionCard({
             </div>
           </div>
         </div>
+
+        {/* Ambiguous or Low Confidence Field Confirmation Advice */}
+        {(disease.ambiguous || disease.recommendation_note) && !isMismatch && (
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface-soft)',
+              border: '1px solid var(--border-color)',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle size={16} color="var(--forest-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              <strong style={{ color: 'var(--text-primary)' }}>Diagnostic Confirmation Guidance: </strong>
+              {disease.recommendation_note ||
+                'Visual symptoms are close to decision boundaries. Inspect under diffuse natural sunlight, examine lower leaf surfaces for fungal sporulation, and consult your regional agricultural extension officer before initiating chemical spraying.'}
+            </div>
+          </div>
+        )}
+
+        {/* Crop Concordance Metric (if crop-aware evaluation was applied) */}
+        {disease.crop_concordance !== null && disease.crop_concordance !== undefined && (
+          <div
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '12px',
+            }}
+          >
+            <span style={{ color: 'var(--text-secondary)' }}>
+              <strong>Crop Concordance Metric:</strong> {(disease.crop_concordance * 100).toFixed(1)}% probability alignment with entered crop ({crop})
+            </span>
+            <span style={{ fontWeight: 600, color: disease.crop_concordance >= 0.15 ? 'var(--forest-primary)' : 'var(--semantic-warning-text)' }}>
+              {disease.crop_concordance >= 0.15 ? '✓ Concordant' : '⚠ Low Concordance'}
+            </span>
+          </div>
+        )}
+
+        {/* Explicit Disclosure for Crop-Aware Constraint */}
+        {disease.crop_aware_mode && (
+          <div
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface-soft)',
+              border: '1px solid var(--border-subtle)',
+              marginBottom: '16px',
+              fontSize: '11.5px',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.4,
+            }}
+          >
+            <strong>Crop Constraint Disclosure:</strong> Vision probabilities were conditioned on user-specified crop ({crop}). User crop entry serves as contextual metadata and does not independently prove botanical identity.
+          </div>
+        )}
+
+        {/* Top Alternative Diagnoses */}
+        {disease.top_alternatives && disease.top_alternatives.length > 1 && (
+          <div style={{ marginBottom: '16px' }}>
+            <h4 style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+              Differential Diagnoses (Top Alternative Candidate Pathogens)
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {disease.top_alternatives.slice(0, 4).map((alt, idx) => {
+                const altConfidence = alt.confidence ?? alt.conditioned_confidence ?? alt.flat_confidence ?? 0;
+                const altPct = Math.round(altConfidence * 100);
+                const altName = alt.class.replace(/___/g, ' ').replace(/_/g, ' ');
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: idx === 0 ? 'var(--bg-surface-soft)' : 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-xs)',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <span style={{ fontWeight: idx === 0 ? 600 : 400, color: 'var(--text-primary)' }}>
+                      {idx + 1}. {altName}
+                    </span>
+                    <span style={{ fontWeight: 600, color: idx === 0 ? 'var(--forest-primary)' : 'var(--text-muted)' }}>
+                      {altPct}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Immediate Cultural & Field Sanitation Actions (Always Safe, Never Washed Off) */}
         <div style={{ marginBottom: '16px' }}>

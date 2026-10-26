@@ -71,6 +71,8 @@ interface FarmInputFormProps {
     currentPrice: string;
     priceHistory: string;
     image: File | null;
+    diseaseModel?: string;
+    leafCropSelection?: string;
   }) => void;
   loading: boolean;
   error?: string;
@@ -82,6 +84,10 @@ export function FarmInputForm({
   loading,
   error,
 }: FarmInputFormProps) {
+  // Model Selection & Leaf Crop Conditioning (DINOv2 LoRA is now the active default)
+  const [diseaseModel, setDiseaseModel] = useState<'dinov2_lora' | 'production'>('dinov2_lora');
+  const [leafCropSelection, setLeafCropSelection] = useState<string>('none');
+
   // Farm Location
   const [locationQuery, setLocationQuery] = useState('Madurai, Tamil Nadu');
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -187,6 +193,8 @@ export function FarmInputForm({
       currentPrice,
       priceHistory,
       image,
+      diseaseModel,
+      leafCropSelection: leafCropSelection === 'auto' ? crop : (leafCropSelection === 'none' ? '' : leafCropSelection),
     });
   };
 
@@ -578,7 +586,7 @@ export function FarmInputForm({
                 <div style={{ textAlign: 'left' }}>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{image?.name}</div>
                   <div style={{ fontSize: '11.5px', color: 'var(--forest-dark)' }}>
-                    Ready for PyTorch MobileNet inference
+                    Ready for {diseaseModel === 'dinov2_lora' ? 'DINOv2-Small Rank-4 LoRA' : 'PyTorch MobileNet'} inference
                   </div>
                   <button
                     type="button"
@@ -615,6 +623,59 @@ export function FarmInputForm({
                 />
               </div>
             )}
+          </div>
+
+          {/* Disease Vision Model Selection & Optional Crop Condition */}
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label className="form-label" style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
+                  Vision Model Architecture
+                </label>
+                <select
+                  className="input"
+                  value={diseaseModel}
+                  onChange={e => setDiseaseModel(e.target.value as any)}
+                  style={{ fontSize: '12px', padding: '6px 8px' }}
+                >
+                  <option value="dinov2_lora">DINOv2-Small Rank-4 LoRA (Default)</option>
+                  <option value="production">MobileNetV3 (Rollback Baseline)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
+                  Optional Diagnostic Crop Filter
+                </label>
+                <select
+                  className="input"
+                  value={leafCropSelection}
+                  onChange={e => setLeafCropSelection(e.target.value)}
+                  style={{ fontSize: '12px', padding: '6px 8px' }}
+                >
+                  <option value="none">Unconstrained (All 38 Classes) - Default</option>
+                  <option value="auto">Auto (Match Farm Crop: {crop})</option>
+                  <option value="Tomato">Tomato (10 classes)</option>
+                  <option value="Potato">Potato (3 classes)</option>
+                  <option value="Corn">Corn / Maize (4 classes)</option>
+                  <option value="Apple">Apple (4 classes)</option>
+                  <option value="Grape">Grape (4 classes)</option>
+                  <option value="Pepper">Pepper (2 classes)</option>
+                  <option value="Cherry">Cherry (2 classes)</option>
+                  <option value="Peach">Peach (2 classes)</option>
+                  <option value="Strawberry">Strawberry (2 classes)</option>
+                  <option value="Squash">Squash (1 class)</option>
+                  <option value="Soybean">Soybean (1 class)</option>
+                  <option value="Orange">Orange / Citrus (1 class)</option>
+                  <option value="Blueberry">Blueberry (1 class)</option>
+                  <option value="Raspberry">Raspberry (1 class)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+              <strong>Crop-Aware Conditioning:</strong> When supplied, probabilities are conditioned on the specified species while cross-crop safety safeguards prevent forced misdiagnosis if visual symptoms diverge.
+            </div>
           </div>
         </div>
 

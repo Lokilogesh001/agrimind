@@ -412,3 +412,44 @@ def test_proper_handling_of_unavailable_external_dataset(tmp_path: Path):
     assert res["status"] == "BLOCKED_PENDING_DATA"
     assert res["model_ready"] is True
     assert (out_dir / "disease_evaluation_status.json").is_file()
+
+
+def test_disease_error_analysis_artifacts_and_consistency():
+    """Verify Phase 1 disease error analysis JSON and Markdown artifacts for mathematical integrity."""
+    import json
+    repo_root = Path(__file__).resolve().parent.parent
+    json_path = repo_root / "evaluation" / "artifacts" / "disease_error_analysis.json"
+    md_path = repo_root / "docs" / "DISEASE_ERROR_ANALYSIS.md"
+
+    assert json_path.is_file(), f"Missing artifact: {json_path}"
+    assert md_path.is_file(), f"Missing artifact: {md_path}"
+
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    meta = data["audit_metadata"]
+    metrics = data["headline_metrics"]
+    gate = data["confidence_gate_audit"]
+    decomp = data["error_decomposition"]
+
+    # Checkpoint integrity
+    assert meta["checkpoint_sha256"] == "c362915969e3d08c86cfa687bb3bbc51e2549be3ade3e0addb5bcc12560ed58e"
+    assert meta["total_evaluated_samples"] == 236
+    assert meta["evaluated_classes_count"] == 27
+    assert meta["unrepresented_classes_count"] == 11
+
+    # Exact arithmetic closure
+    assert metrics["total_correct"] + metrics["total_incorrect"] == 236
+    assert metrics["total_correct"] == 60
+    assert metrics["total_incorrect"] == 176
+    assert round(metrics["top1_accuracy"], 4) == 0.2542
+
+    # Error decomposition closure
+    assert decomp["cross_crop_errors_count"] + decomp["within_crop_errors_count"] == decomp["total_errors"]
+    assert decomp["total_errors"] == 176
+    assert decomp["cross_crop_errors_count"] == 114
+    assert decomp["within_crop_errors_count"] == 62
+
+    # Confidence gate closure
+    assert gate["total_actionable"] + gate["total_abstentions"] == 236
+    assert gate["actionable_correct"] + gate["false_confident_predictions"] == gate["total_actionable"]
+    assert gate["safely_rejected_errors"] + gate["suppressed_correct_predictions"] == gate["total_abstentions"]
+    assert gate["safely_rejected_errors"] + gate["false_confident_predictions"] == 176

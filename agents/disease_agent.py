@@ -7,6 +7,8 @@ from functools import lru_cache
 from typing import Any
 
 from ml.disease_model import DiseasePredictor, get_model_health
+from ml.dinov2_adapter import get_dinov2_health
+from ml.model_registry import get_model, resolve_model_name, MODEL_DINOV2_LORA
 from orchestrator.state import DiseaseResult, AgentStatus
 
 LOW_CONFIDENCE_GATE = 0.60
@@ -71,28 +73,38 @@ def _infer_severity(predicted_class: str | None) -> str:
     return "high" if any(k in disease_component for k in _HIGH_SEVERITY_KEYWORDS) else "moderate"
 
 
-@lru_cache(maxsize=1)
-def _load_default_model() -> DiseasePredictor:
-    """Load and cache the trained MobileNetV3 disease predictor."""
-    path = os.getenv("DISEASE_MODEL_PATH", "ml/artifacts/best.pt")
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Disease model checkpoint not found: {path}")
-    return DiseasePredictor(path, confidence_gate=LOW_CONFIDENCE_GATE)
+def _load_default_model(model_name: str | None = None) -> Any:
+    """Load and cache the requested or default disease predictor from registry."""
+    return get_model(model_name)
 
 
-def get_disease_model_health() -> dict[str, Any]:
-    """Check health and readiness of the disease classifier."""
+def get_disease_model_health(model_name: str | None = None) -> dict[str, Any]:
+    """Check health and readiness of the active default or specified disease classifier."""
+    active = resolve_model_name(model_name)
+    if active == MODEL_DINOV2_LORA:
+        return get_dinov2_health()
     return get_model_health()
 
 
-def classify(image_path: str, model=None) -> dict[str, Any]:
+def classify(
+    image_path: str,
+    model: Any = None,
+    model_name: str | None = None,
+    selected_crop: str = "",
+) -> dict[str, Any]:
     """Execute classification with robust error handling for missing/corrupted checkpoints or images."""
     if not image_path:
         raise ValueError("image_path is required")
 
     try:
-        predictor = model or _load_default_model()
-        result = predictor.predict(image_path)
+        predictor = model or _load_default_model(model_name)
+        try:
+            # Check if predictor supports crop-aware conditioning
+            result = predictor.predict(image_path, selected_crop=selected_crop)
+        except TypeError:
+            # Fall back for models that do not accept selected_crop (e.g. baseline MobileNetV3)
+            result = predictor.predict(image_path)
+
         result["status"] = "SUCCESS"
         return result
     except FileNotFoundError as exc:
@@ -106,7 +118,7 @@ def classify(image_path: str, model=None) -> dict[str, Any]:
         }
     except (ValueError, OSError) as exc:
         err_msg = str(exc).lower()
-        if "checkpoint" in err_msg or "failed to load" in err_msg:
+        if "checkpoint" in err_msg or "failed to load" in err_msg or "unsupported disease model" in err_msg:
             status = "MODEL_UNAVAILABLE"
         else:
             status = "INVALID_IMAGE"
@@ -145,12 +157,14 @@ def run(
     model=None,
     override: dict | None = None,
     selected_crop: str = "",
+    model_name: str | None = None,
 ) -> DiseaseResult:
     start_time = time.perf_counter()
     input_summary = {
         "has_image": bool(image_path),
         "selected_crop": selected_crop,
         "has_override": override is not None,
+        "model_name": model_name,
     }
 
     # Case B: disease_override supplied (internal/test only)
@@ -210,13 +224,13 @@ def run(
 
     # Case A: image supplied and exists
     if image_path:
-        result = classify(image_path, model=model)
+        result = classify(image_path, model=model, model_name=model_name, selected_crop=selected_crop)
         status = result.get("status", "AVAILABLE")
 
         if status in ("MODEL_UNAVAILABLE", "INVALID_IMAGE"):
             latency = round((time.perf_counter() - start_time) * 1000, 2)
             reason = (
-                "Crop disease vision model unavailable. Phytosanitary treatment advice cannot proceed without confirmed diagnosis."
+                f"Crop disease vision model unavailable: {result.get('error', 'artifact error')}. Phytosanitary treatment advice cannot proceed without confirmed diagnosis."
                 if status == "MODEL_UNAVAILABLE"
                 else f"Uploaded leaf image is invalid or corrupted: {result.get('error', 'decode error')}."
             )
@@ -270,6 +284,20 @@ def run(
             else "Canopy tissue appears healthy."
         )
 
+        model_arch = result.get("model_architecture", "MobileNetV3-Large")
+        model_ver = result.get("model_version", "production")
+        crop_concordance = result.get("crop_concordance")
+        crop_aware = result.get("crop_aware_mode", False)
+        ambiguous = result.get("ambiguous", False)
+        rec_note = result.get("recommendation_note")
+        top_alts = result.get("top_k", [])
+
+        warnings_list = [block_reason] if block_reason else []
+        if result.get("crop_warning"):
+            warnings_list.append(result["crop_warning"])
+        if rec_note:
+            warnings_list.append(rec_note)
+
         latency = round((time.perf_counter() - start_time) * 1000, 2)
         return DiseaseResult(
             agent_name="disease",
@@ -290,11 +318,35 @@ def run(
             block_reason=block_reason,
             status="AVAILABLE",
             input_summary=input_summary,
-            findings=f"Foliar pathogen classified: {predicted_class} ({round(confidence*100)}%)",
-            evidence=[{"predicted_class": predicted_class, "confidence": confidence, "top_k": result.get("top_k", [])}],
-            warnings=[block_reason] if block_reason else [],
+            findings=f"Foliar pathogen classified: {predicted_class} ({round(confidence*100)}%) via {model_arch}",
+            evidence=[{
+                "predicted_class": predicted_class,
+                "confidence": confidence,
+                "top_k": top_alts,
+                "model_architecture": model_arch,
+                "model_version": model_ver,
+                "crop_concordance": crop_concordance,
+            }],
+            warnings=warnings_list,
             execution_time_ms=latency,
-            source_metadata={"model": "MobileNetV3-Large", "checkpoint": result.get("checkpoint")},
+            source_metadata={
+                "model": model_arch,
+                "model_architecture": model_arch,
+                "model_version": model_ver,
+                "checkpoint": result.get("checkpoint"),
+                "crop_concordance": crop_concordance,
+                "crop_aware_mode": crop_aware,
+                "ambiguous": ambiguous,
+                "recommendation_note": rec_note,
+                "all_probabilities": result.get("all_probabilities"),
+            },
+            model_architecture=model_arch,
+            model_version=model_ver,
+            crop_concordance=crop_concordance,
+            crop_aware_mode=crop_aware,
+            ambiguous=ambiguous,
+            recommendation_note=rec_note,
+            top_alternatives=top_alts,
         )
 
     # Case C: No image + no disease_override

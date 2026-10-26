@@ -1,0 +1,23 @@
+{
+  "status": "PARTIAL_CROSS_DATASET_EVALUATION",
+  "checkpoint": "D:\\project\\AGRIMIND\\demo\\agrimind_batch1\\ml\\research\\rtx3050_v1\\checkpoint_best_val.pt",
+  "checkpoint_sha256": "af25e984e77cdcfca74b5c40b206f521d7bc42f0e6dfba50133ceefd6a545b68",
+  "evaluated_dataset": "PlantDoc_Train_Partition",
+  "provenance": "Singh et al., ACM CoDS-COMAD 2020 (CC BY 4.0)",
+  "classes_evaluated_count": 27,
+  "classes_total_count": 38,
+  "total_test_samples": 108,
+  "top1_accuracy": 0.3611,
+  "wilson_95_ci": [
+    0.2767,
+    0.455
+  ],
+  "macro_f1_evaluated_classes": 0.3512,
+  "macro_f1_all_38_classes": 0.2496,
+  "expected_calibration_error": 0.116408,
+  "fraction_below_gate_0_60": 0.7685,
+  "leakage_detected": false,
+  "results_json": "D:\\project\\AGRIMIND\\demo\\agrimind_batch1\\evaluation\\artifacts\\field_val_rtx3050_v1\\disease_evaluation_results.json",
+  "confusion_matrix_csv": "D:\\project\\AGRIMIND\\demo\\agrimind_batch1\\evaluation\\artifacts\\field_val_rtx3050_v1\\confusion_matrix.csv",
+  "timestamp_utc": "2026-10-26T04:11:34.942023+00:00"
+}

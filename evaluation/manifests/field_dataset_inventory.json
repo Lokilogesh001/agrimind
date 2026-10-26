@@ -1,0 +1,202 @@
+{
+  "metadata": {
+    "title": "AgriMind Phase 2 Field Dataset Inventory & Split Manifest",
+    "timestamp_utc": "2026-10-25T22:24:22.306473+00:00",
+    "source_dataset": "PlantDoc (Singh et al., ACM CoDS-COMAD 2020)",
+    "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "locked_test_manifest_a": "evaluation/manifests/plantdoc_test_manifest.csv",
+    "locked_test_a_samples_count": 236,
+    "independent_test_b_manifest": "evaluation\\manifests\\independent_field_test_manifest.csv",
+    "independent_test_b_samples_count": 221
+  },
+  "raw_candidate_pool": {
+    "total_raw_train_images": 2342,
+    "supported_mapped_classes": 28,
+    "excluded_exact_duplicates_with_test_a": 15,
+    "excluded_specimen_stem_overlaps_with_test_a": 281,
+    "duplicate_audit_details": [
+      {
+        "git_path": "train/Bell_pepper leaf spot/0.jpg",
+        "folder_label": "Bell_pepper leaf spot",
+        "clean_filename": "0.jpg"
+      },
+      {
+        "git_path": "train/Bell_pepper leaf spot/0000.jpg",
+        "folder_label": "Bell_pepper leaf spot",
+        "clean_filename": "0000.jpg"
+      },
+      {
+        "git_path": "train/Blueberry leaf/blueberry-leaves-normal-above-and-iron-deficient-below-bgahf8.jpg",
+        "folder_label": "Blueberry leaf",
+        "clean_filename": "blueberry-leaves-normal-above-and-iron-deficient-below-bgahf8.jpg"
+      },
+      {
+        "git_path": "train/Corn Gray leaf spot/2013Corn_GrayLeafSpot_0815_0003.JPG.jpg",
+        "folder_label": "Corn Gray leaf spot",
+        "clean_filename": "2013Corn_GrayLeafSpot_0815_0003.JPG.jpg"
+      },
+      {
+        "git_path": "train/Corn Gray leaf spot/2015070295153021.jpg",
+        "folder_label": "Corn Gray leaf spot",
+        "clean_filename": "2015070295153021.jpg"
+      },
+      {
+        "git_path": "train/Corn Gray leaf spot/corn-gray-leaf-spot-f4.jpg",
+        "folder_label": "Corn Gray leaf spot",
+        "clean_filename": "corn-gray-leaf-spot-f4.jpg"
+      },
+      {
+        "git_path": "train/Corn leaf blight/IMG_42231.jpg",
+        "folder_label": "Corn leaf blight",
+        "clean_filename": "IMG_42231.jpg"
+      },
+      {
+        "git_path": "train/Corn leaf blight/image.jpg",
+        "folder_label": "Corn leaf blight",
+        "clean_filename": "image.jpg"
+      },
+      {
+        "git_path": "train/Potato leaf early blight/5816740026_d42ef24413_Phytophthora-Infestans.jpg",
+        "folder_label": "Potato leaf early blight",
+        "clean_filename": "5816740026_d42ef24413_Phytophthora-Infestans.jpg"
+      },
+      {
+        "git_path": "train/Potato leaf early blight/irish-blight-symptoms-on-potato-leaves-atmf8b.jpg",
+        "folder_label": "Potato leaf early blight",
+        "clean_filename": "irish-blight-symptoms-on-potato-leaves-atmf8b.jpg"
+      },
+      {
+        "git_path": "train/Potato leaf late blight/backus-056-potato-blight.jpg",
+        "folder_label": "Potato leaf late blight",
+        "clean_filename": "backus-056-potato-blight.jpg"
+      },
+      {
+        "git_path": "train/Tomato Early blight leaf/earlyblightpotato.jpg",
+        "folder_label": "Tomato Early blight leaf",
+        "clean_filename": "earlyblightpotato.jpg"
+      },
+      {
+        "git_path": "train/Tomato Septoria leaf spot/early-blight-septoria-ls-fig-3.jpg",
+        "folder_label": "Tomato Septoria leaf spot",
+        "clean_filename": "early-blight-septoria-ls-fig-3.jpg"
+      },
+      {
+        "git_path": "train/Tomato Septoria leaf spot/tomato_V8.jpg",
+        "folder_label": "Tomato Septoria leaf spot",
+        "clean_filename": "tomato_V8.jpg"
+      },
+      {
+        "git_path": "train/Tomato leaf yellow virus/tylcv-seminar-1-638.jpg",
+        "folder_label": "Tomato leaf yellow virus",
+        "clean_filename": "tylcv-seminar-1-638.jpg"
+      }
+    ]
+  },
+  "curated_split_sizes": {
+    "locked_test_a_count": 236,
+    "independent_test_b_count": 221,
+    "val_samples_count": 108,
+    "train_samples_count": 419,
+    "specimen_leakage_detected": false,
+    "test_set_leakage_detected": false
+  },
+  "per_class_support": {
+    "independent_test_b": {
+      "Apple___Apple_scab": 8,
+      "Apple___Cedar_apple_rust": 8,
+      "Apple___healthy": 8,
+      "Blueberry___healthy": 8,
+      "Cherry_(including_sour)___healthy": 8,
+      "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": 8,
+      "Corn_(maize)___Common_rust_": 8,
+      "Corn_(maize)___Northern_Leaf_Blight": 8,
+      "Grape___Black_rot": 8,
+      "Grape___healthy": 8,
+      "Peach___healthy": 8,
+      "Pepper,_bell___Bacterial_spot": 8,
+      "Pepper,_bell___healthy": 8,
+      "Potato___Early_blight": 12,
+      "Potato___Late_blight": 8,
+      "Raspberry___healthy": 8,
+      "Soybean___healthy": 8,
+      "Squash___Powdery_mildew": 8,
+      "Strawberry___healthy": 8,
+      "Tomato___Bacterial_spot": 8,
+      "Tomato___Early_blight": 8,
+      "Tomato___Late_blight": 8,
+      "Tomato___Leaf_Mold": 8,
+      "Tomato___Septoria_leaf_spot": 8,
+      "Tomato___Spider_mites Two-spotted_spider_mite": 1,
+      "Tomato___Tomato_Yellow_Leaf_Curl_Virus": 8,
+      "Tomato___Tomato_mosaic_virus": 8,
+      "Tomato___healthy": 8
+    },
+    "val": {
+      "Apple___Apple_scab": 4,
+      "Apple___Cedar_apple_rust": 4,
+      "Apple___healthy": 4,
+      "Blueberry___healthy": 4,
+      "Cherry_(including_sour)___healthy": 4,
+      "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": 4,
+      "Corn_(maize)___Common_rust_": 4,
+      "Corn_(maize)___Northern_Leaf_Blight": 4,
+      "Grape___Black_rot": 4,
+      "Grape___healthy": 4,
+      "Peach___healthy": 4,
+      "Pepper,_bell___Bacterial_spot": 4,
+      "Pepper,_bell___healthy": 4,
+      "Potato___Early_blight": 4,
+      "Potato___Late_blight": 4,
+      "Raspberry___healthy": 4,
+      "Soybean___healthy": 4,
+      "Squash___Powdery_mildew": 4,
+      "Strawberry___healthy": 4,
+      "Tomato___Bacterial_spot": 4,
+      "Tomato___Early_blight": 4,
+      "Tomato___Late_blight": 4,
+      "Tomato___Leaf_Mold": 4,
+      "Tomato___Septoria_leaf_spot": 4,
+      "Tomato___Spider_mites Two-spotted_spider_mite": 0,
+      "Tomato___Tomato_Yellow_Leaf_Curl_Virus": 4,
+      "Tomato___Tomato_mosaic_virus": 4,
+      "Tomato___healthy": 4
+    },
+    "train": {
+      "Apple___Apple_scab": 15,
+      "Apple___Cedar_apple_rust": 18,
+      "Apple___healthy": 15,
+      "Blueberry___healthy": 15,
+      "Cherry_(including_sour)___healthy": 15,
+      "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": 15,
+      "Corn_(maize)___Common_rust_": 15,
+      "Corn_(maize)___Northern_Leaf_Blight": 15,
+      "Grape___Black_rot": 15,
+      "Grape___healthy": 15,
+      "Peach___healthy": 15,
+      "Pepper,_bell___Bacterial_spot": 15,
+      "Pepper,_bell___healthy": 15,
+      "Potato___Early_blight": 15,
+      "Potato___Late_blight": 15,
+      "Raspberry___healthy": 15,
+      "Soybean___healthy": 15,
+      "Squash___Powdery_mildew": 15,
+      "Strawberry___healthy": 15,
+      "Tomato___Bacterial_spot": 15,
+      "Tomato___Early_blight": 15,
+      "Tomato___Late_blight": 15,
+      "Tomato___Leaf_Mold": 24,
+      "Tomato___Septoria_leaf_spot": 15,
+      "Tomato___Spider_mites Two-spotted_spider_mite": 1,
+      "Tomato___Tomato_Yellow_Leaf_Curl_Virus": 16,
+      "Tomato___Tomato_mosaic_virus": 15,
+      "Tomato___healthy": 15
+    }
+  },
+  "paths": {
+    "images_directory": "evaluation\\datasets\\field_data\\images",
+    "locked_test_a_manifest": "evaluation/manifests/plantdoc_test_manifest.csv",
+    "independent_test_b_manifest": "evaluation\\manifests\\independent_field_test_manifest.csv",
+    "val_manifest": "evaluation\\manifests\\field_val_manifest.csv",
+    "train_manifest": "evaluation\\manifests\\field_train_manifest.csv"
+  }
+}

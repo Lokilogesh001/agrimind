@@ -63,6 +63,7 @@ class BaseAdvisoryRequest(BaseModel):
     sowing_date: str | None = Field(default=None, max_length=50)
     last_irrigation: str | None = Field(default=None, max_length=50)
     symptoms: str | None = Field(default=None, max_length=500)
+    disease_model: str | None = Field(default=None, max_length=50)
 
     @field_validator("price_history")
     @classmethod
@@ -70,6 +71,14 @@ class BaseAdvisoryRequest(BaseModel):
         if any(v < 0 for v in values):
             raise ValueError("price_history values must be non-negative")
         return values
+
+    @field_validator("disease_model")
+    @classmethod
+    def validate_disease_model(cls, value: str | None) -> str | None:
+        if value:
+            from ml.model_registry import resolve_model_name
+            resolve_model_name(value)
+        return value
 
 
 class AdvisoryRequest(BaseAdvisoryRequest):
@@ -203,6 +212,17 @@ def _serialize(state):
     has_disease = bool(getattr(state.disease, "predicted_class", None))
     d_status = getattr(state.disease, "status", "AVAILABLE")
 
+    model_arch = getattr(state.disease, "model_architecture", "DINOv2-Small-LoRA")
+    model_ver = getattr(state.disease, "model_version", "r4_b4")
+    crop_concordance = getattr(state.disease, "crop_concordance", None)
+    crop_aware = getattr(state.disease, "crop_aware_mode", False)
+    ambiguous = getattr(state.disease, "ambiguous", False)
+    rec_note = getattr(state.disease, "recommendation_note", None)
+    top_alts = getattr(state.disease, "top_alternatives", [])
+    if not top_alts and getattr(state.disease, "evidence", []):
+        ev0 = state.disease.evidence[0] if isinstance(state.disease.evidence[0], dict) else {}
+        top_alts = ev0.get("top_k", [])
+
     if d_status == "MODEL_UNAVAILABLE":
         disease_gate_data = {
             "confidence": 0.0,
@@ -212,6 +232,13 @@ def _serialize(state):
             "action": "BLOCKED",
             "reason": "Disease diagnostic model checkpoint is unavailable. Image inference cannot run.",
             "status": "MODEL_UNAVAILABLE",
+            "model_architecture": model_arch,
+            "model_version": model_ver,
+            "crop_concordance": crop_concordance,
+            "crop_aware_mode": crop_aware,
+            "ambiguous": False,
+            "recommendation_note": rec_note,
+            "top_alternatives": [],
         }
     elif d_status == "INVALID_IMAGE":
         disease_gate_data = {
@@ -222,6 +249,13 @@ def _serialize(state):
             "action": "BLOCKED",
             "reason": "Uploaded leaf image is corrupted, malformed, or unsupported.",
             "status": "INVALID_IMAGE",
+            "model_architecture": model_arch,
+            "model_version": model_ver,
+            "crop_concordance": crop_concordance,
+            "crop_aware_mode": crop_aware,
+            "ambiguous": False,
+            "recommendation_note": rec_note,
+            "top_alternatives": [],
         }
     else:
         disease_gate_data = {
@@ -240,6 +274,13 @@ def _serialize(state):
                 )
             ),
             "status": d_status,
+            "model_architecture": model_arch,
+            "model_version": model_ver,
+            "crop_concordance": crop_concordance,
+            "crop_aware_mode": crop_aware,
+            "ambiguous": ambiguous,
+            "recommendation_note": rec_note,
+            "top_alternatives": top_alts,
         }
 
     nearby_stores_data = []
@@ -528,10 +569,23 @@ def health():
 
 
 @app.get("/health/model")
-def model_health():
-    """Explicit model readiness and health reporting endpoint."""
+def model_health(model: str | None = None):
+    """Explicit model readiness and health reporting endpoint for active default or requested model."""
+    from ml.model_registry import resolve_model_name, MODEL_DINOV2_LORA
+    from ml.dinov2_adapter import get_dinov2_health
     from ml.disease_model import get_model_health
+
+    target = resolve_model_name(model)
+    if target == MODEL_DINOV2_LORA:
+        return get_dinov2_health()
     return get_model_health()
+
+
+@app.get("/health/models")
+def models_health():
+    """Report readiness and status of all registered disease vision models."""
+    from ml.model_registry import get_registry_status
+    return get_registry_status()
 
 
 @app.get("/api/crops")
@@ -724,6 +778,7 @@ async def advisory_upload(
     soil_mode: str = Form(""),
     farm_area: float | None = Form(None),
     irrigation_method: str = Form(""),
+    disease_model: str | None = Form(None),
     image: UploadFile | None = File(None),
 ):
     if image is None:
@@ -767,6 +822,7 @@ async def advisory_upload(
             soil_mode=soil_mode[:50] if soil_mode else None,
             farm_area=farm_area,
             irrigation_method=irrigation_method[:100] if irrigation_method else None,
+            disease_model=disease_model[:50] if disease_model else None,
         ).model_dump()
         payload["image_path"] = path  # internal, validated temporary path only
         return _serialize(run_advisory(payload))
@@ -794,4 +850,3 @@ def get_run(run_id: str):
 def feedback(payload: FeedbackRequest):
     obs.log_feedback(**payload.model_dump())
     return {"status": "saved", "run_id": payload.run_id}
-

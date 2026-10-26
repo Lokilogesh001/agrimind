@@ -116,17 +116,20 @@ def node_soil(state: AgriMindState) -> AgriMindState:
 
 def node_disease(state: AgriMindState) -> AgriMindState:
     inputs = state.raw_inputs
+    model_choice = inputs.get("disease_model") or inputs.get("model_name")
     result, latency = _timed(
         disease_agent.run,
         image_path=inputs.get("image_path"),
         override=inputs.get("disease_override"),
         selected_crop=state.crop.crop,
+        model_name=model_choice,
     )
     result.execution_time_ms = latency
     result.input_summary = {
         "has_image": bool(inputs.get("image_path")),
         "selected_crop": state.crop.crop,
         "has_override": bool(inputs.get("disease_override")),
+        "model_name": model_choice,
     }
     result.findings = (
         f"Detected: {result.predicted_class} (confidence: {result.confidence:.2f})"
@@ -355,4 +358,3 @@ def run_advisory(inputs: dict) -> AgriMindState:
         soil_provenance=str(getattr(state.soil, "provenance", {}).get("mode", "")),
     )
     return state
-
