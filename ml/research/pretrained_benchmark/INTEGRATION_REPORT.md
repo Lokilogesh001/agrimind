@@ -137,3 +137,12 @@ If operational conditions require reverting to MobileNetV3-Large:
 1. **Global Configuration:** Set `DISEASE_MODEL_BACKBONE=production` in `.env` or system environment and restart the backend.
 2. **Per-Request Override:** Clients can explicitly supply `"disease_model": "production"` in any API request payload.
 3. **Verification:** Inspect `GET /health/model` to confirm `"architecture": "MobileNetV3-Large"`.
+
+---
+
+## 8. Accuracy V2 Experimental Audit & GitHub Baseline
+
+- **GitHub Baseline Checkpoint Tag:** `agrimind-dinov2-baseline-20261026` (Commit `4b2439bbd80ee6ba6d32f67cd95dafa4557b2c34`, pushed to `origin/main`).
+- **Accuracy V2 Experiment Matrix:** 16 controlled runs executed in `ml/research/pretrained_benchmark/accuracy_v2/` spanning frozen linear probes, LoRA ranks (2, 4, 8), transformer depth (2 vs 4 blocks), projection targets, partial fine-tuning (blocks 10 & 11), class-balanced focal loss, enhanced field augmentations, and label smoothing.
+- **Empirical Conclusion:** Incumbent DINOv2 LoRA (`dinov2_lora_r4_b4_best.pt`, SHA-256 `8ae555c2...`) ranked #1 across all models with 64.81% validation accuracy, 0.6510 Macro-F1, and 0.7310 composite score. Paired bootstrap significance testing (10,000 iterations) confirmed that no candidate exceeded the incumbent with statistical significance ($p < 0.05$).
+- **Deployment Action:** The incumbent DINOv2-Small Rank-4 LoRA model is retained as the authoritative production default.

@@ -1,0 +1,22 @@
+{
+  "n_iterations": 10000,
+  "incumbent_accuracy": 0.6481,
+  "candidate_accuracy": 0.6481,
+  "accuracy_delta_mean": 0.0,
+  "accuracy_delta_95_ci": [
+    0.0,
+    0.0
+  ],
+  "accuracy_p_value": 1.0,
+  "incumbent_macro_f1": 0.651,
+  "candidate_macro_f1": 0.651,
+  "macro_f1_delta_mean": 0.0,
+  "macro_f1_delta_95_ci": [
+    0.0,
+    0.0
+  ],
+  "macro_f1_p_value": 1.0,
+  "statistically_superior": false,
+  "incumbent_run_id": "exp_B2_lora_r4_b4_baseline",
+  "candidate_run_id": "exp_B2_lora_r4_b4_baseline"
+}
