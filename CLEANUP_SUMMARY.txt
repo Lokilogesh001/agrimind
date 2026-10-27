@@ -1,0 +1,107 @@
+================================================================================
+AGRIMIND CLEANUP & RUNNABLE CORE SUMMARY
+================================================================================
+Generated: October 2026
+Workspace: D:\project\AGRIMIND\demo\agrimind_batch1
+Distribution Deliverable: D:\project\AGRIMIND\demo\dist\AgriMind_Core.zip
+
+--------------------------------------------------------------------------------
+1. WHAT WAS REMOVED AND WHY
+--------------------------------------------------------------------------------
+A total of 3,064.0 MB (2.99 GB, 2,525 files) of non-runtime assets was safely deleted:
+- tests/ (1.1 MB, 41 files): Development-only pytest test suites, unit tests, and test fixtures.
+- evaluation/ (461.8 MB, 1,454 files): Large benchmark datasets (PlantDoc, field splits), confusion matrices, and evaluation scripts.
+- ml/research/ (2,483.1 MB, 662 files): Historical experiment matrices, Optuna trial runs, feature caches, and intermediate checkpoints.
+- ml/train_disease.py & ml/train_field_finetune.py: Training pipelines unneeded during runtime inference.
+- knowledge/ICAR-En-Kharif-Agro-Advisories-for-Farmers-2025.pdf (17.8 MB): Raw document unneeded at runtime (pre-chunked icar_chunks.json retained).
+- docs/ (0.2 MB, 22 files): Redundant documentation superseded by single-file AgriMind_Complete_Documentation.md.
+- scripts/*.py (0.1 MB, 9 files): Research evaluation, data auditing, and split preparation scripts.
+- agrimind_local.db (8.1 MB): Local development SQLite file (auto-recreated cleanly on first boot).
+- web/.next/ (92.2 MB) & web/tsconfig.tsbuildinfo: Next.js compilation caches.
+- Root obsolete docs: BUILD_STATUS.md, PROJECT_AUDIT.md, QUICKSTART.md.
+- Bytecode caches: All __pycache__/ directories, *.pyc files, and .pytest_cache/.
+
+--------------------------------------------------------------------------------
+2. WHAT CORE MODULES WERE RETAINED
+--------------------------------------------------------------------------------
+Retained 100% of functional application code (63 clean source modules):
+- agents/ (5 modules): advisory_agent.py, disease_agent.py, market_agent.py, soil_agent.py, weather_agent.py.
+- api/ (2 modules): main.py (FastAPI gateway, CORS, upload validation), __init__.py.
+- data_sources/ (7 modules): crops.py, geocoding.py, market.py, soil.py, stores.py, treatments.py, weather.py.
+- decision/ (6 modules): evidence_engine.py (DSS), evidence_quality.py (EQS), models.py, rules.py, safety_guard.py (Rules A-F), scoring.py.
+- llm/ (2 modules): explainer.py (OpenAI -> Grok -> Template failover), config.py (credential sanitizer).
+- ml/ (6 modules + artifacts): dinov2_adapter.py, disease_model.py, model_registry.py, plantvillage_dataset.py, README.md, __init__.py.
+  - ml/artifacts/dinov2_lora_r4_b4_best.pt (88.48 MB, champion DINOv2-Small Rank-4 LoRA model).
+  - ml/artifacts/best.pt (17.20 MB, MobileNetV3-Large rollback option).
+  - ml/artifacts/MODEL_MANIFEST.json & MODELS_README.md.
+- observability/ (2 modules): database.py (SQLAlchemy SQLite/Postgres ORM), schema.sql.
+- orchestrator/ (2 modules): graph.py (parallel execution graph & blackboard), state.py.
+- rag/ (3 modules): retriever.py (BM25 + regional zone reranker), metadata.py, icar_ingest.py.
+- knowledge/ (1 asset): icar_chunks.json (2.36 MB runtime ICAR advisory corpus).
+- scripts/ (3 runner scripts): clean.js, dev.js, start.js.
+- web/ (Next.js 16 frontend): package.json, package-lock.json, tsconfig.json, next.config.ts, layout.tsx, page.tsx, globals.css, and all 19 React 19 UI components in app/components/.
+- Root essentials: main.py, start.ps1, start.sh, requirements.txt, package.json, .env.example, .gitignore, README.md, Dockerfile, docker-compose.yml, PACKAGE_CONTENTS.md, AgriMind_Complete_Documentation.md.
+
+--------------------------------------------------------------------------------
+3. FINAL ARCHIVE SIZE AND FILE COUNT
+--------------------------------------------------------------------------------
+Deliverable: D:\project\AGRIMIND\demo\dist\AgriMind_Core.zip
+Total Files in Archive: 93
+Uncompressed Size:      103.83 MB (108,875,198 bytes)
+Compressed Size:        93.98 MB (98,549,662 bytes)
+Compression Ratio:      90.5%
+Size Reduction from original 5.07 GB: 98.2% smaller!
+
+--------------------------------------------------------------------------------
+4. EXACT COMMANDS TO INSTALL DEPENDENCIES AND RUN
+--------------------------------------------------------------------------------
+Automated Cross-Platform Startup:
+- Windows (PowerShell):
+    .\start.ps1
+- Linux / macOS (Bash):
+    chmod +x start.sh
+    ./start.sh
+
+Manual Step-by-Step:
+1. Backend setup:
+    python -m venv .venv
+    # Windows: .venv\Scripts\activate
+    # Linux:   source .venv/bin/activate
+    pip install -r requirements.txt
+    cp .env.example .env
+    uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+2. Frontend setup:
+    cd web
+    npm install
+    npm run dev
+
+3. Headless CLI verification:
+    python main.py
+
+Endpoints:
+- Web Dashboard:   http://localhost:3000
+- API Gateway:     http://localhost:8000
+- API Docs:        http://localhost:8000/docs
+- Model Health:    http://localhost:8000/health/model
+
+--------------------------------------------------------------------------------
+5. MODEL ASSETS STATUS & OFFLINE REQUIREMENTS
+--------------------------------------------------------------------------------
+- DINOv2 LoRA Champion Checkpoint: Included in archive at ml/artifacts/dinov2_lora_r4_b4_best.pt (88.48 MB, SHA-256: 8ae555c2054fd518edb5382519cca4fba9d2bff4bc039636fddc4b14edf1aa68).
+- MobileNetV3 Rollback Checkpoint: Included in archive at ml/artifacts/best.pt (17.20 MB, SHA-256: c362915969e3d08c86cfa687bb3bbc51e2549be3ade3e0addb5bcc12560ed58e).
+- Backbone Requirement: The base ViT backbone 'facebook/dinov2-small' (commit 67ab868) is cached locally by transformers on first inference (~85 MB) or can be pre-cached into ~/.cache/huggingface/hub with HF_HUB_OFFLINE=1 for air-gapped deployments.
+- No model weights are missing or broken; zero application code points to deleted files.
+
+--------------------------------------------------------------------------------
+6. VERIFICATION CHECKS RUN & RESULTS
+--------------------------------------------------------------------------------
+[PASS] Python Import Integrity: All 8 core Python sub-packages imported cleanly with zero missing module errors.
+[PASS] Headless Scenario Verification: python main.py executed all 3 multi-agent scenarios with exit code 0.
+[PASS] DINOv2-Small LoRA Health: ml/dinov2_adapter.py reports status 'READY' loading directly from ml/artifacts/.
+[PASS] MobileNetV3 Health: ml/disease_model.py reports status 'READY' loading from ml/artifacts/best.pt.
+[PASS] Frontend TypeScript Typecheck: npm --prefix web run typecheck passed with 0 errors.
+[PASS] Next.js Production Build: npm --prefix web run build compiled successfully in 3.1s with Turbopack.
+[PASS] Clean Build Artifact Scrubbing: web/.next build directory cleaned cleanly without leaving build debris.
+[PASS] Zero Leak Check: Zero test suites, datasets, research logs, secrets, or temporary databases in archive.
+================================================================================

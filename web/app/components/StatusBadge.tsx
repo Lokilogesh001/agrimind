@@ -30,7 +30,7 @@ export function StatusBadge({
   size = 'md',
 }: StatusBadgeProps) {
   const getIcon = () => {
-    const iconSize = size === 'sm' ? 12 : 13;
+    const iconSize = size === 'sm' ? 11 : 13;
     switch (icon) {
       case 'check':
         return <CheckCircle2 size={iconSize} />;
@@ -54,7 +54,7 @@ export function StatusBadge({
   };
 
   const sizeStyle = size === 'sm'
-    ? { padding: '2px 7px', fontSize: '10.5px' }
+    ? { padding: '2px 8px', fontSize: '10.5px' }
     : {};
 
   return (

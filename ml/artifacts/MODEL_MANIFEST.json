@@ -1,0 +1,63 @@
+{
+  "manifest_version": "1.2.0",
+  "project": "AgriMind Multi-Crop Disease Diagnostics",
+  "taxonomy": "PlantVillage + Field Unified 38-Class Agronomic Taxonomy",
+  "num_classes": 38,
+  "default_model": "dinov2_lora",
+  "models": {
+    "dinov2_lora": {
+      "model_id": "dinov2_lora",
+      "architecture": "DINOv2-Small + Rank-4 LoRA",
+      "role": "Active Production Default",
+      "backbone_repo": "facebook/dinov2-small",
+      "backbone_revision": "67ab8680145be8a9668d2b8b939922e3eb8c6c58",
+      "lora_target_blocks": [8, 9, 10, 11],
+      "lora_rank": 4,
+      "lora_alpha": 8,
+      "lora_dropout": 0.05,
+      "checkpoint_path": "ml/artifacts/dinov2_lora_r4_b4_best.pt",
+      "fallback_checkpoint_path": "ml/research/pretrained_benchmark/lora_experiments/checkpoints/dinov2_lora_r4_b4_best.pt",
+      "expected_sha256": "8ae555c2054fd518edb5382519cca4fba9d2bff4bc039636fddc4b14edf1aa68",
+      "file_size_bytes": 88480982,
+      "input_resolution": [224, 224],
+      "normalization": {
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225]
+      },
+      "evaluation_metrics": {
+        "field_validation_top1_acc": 0.6481,
+        "field_validation_macro_f1": 0.6510,
+        "field_validation_ece": 0.0573,
+        "plantdoc_held_out_unconstrained_acc": 0.5678,
+        "plantdoc_held_out_unconstrained_f1": 0.5532,
+        "plantdoc_held_out_crop_constrained_acc": 0.7246,
+        "independent_field_unconstrained_acc": 0.6606,
+        "independent_field_unconstrained_f1": 0.6301,
+        "independent_field_crop_constrained_acc": 0.7330
+      },
+      "runtime_notes": "Requires HuggingFace transformers>=4.40.0. The ~85MB DINOv2-Small backbone weights are fetched on initial load and cached in ~/.cache/huggingface/hub. If operating in an air-gapped/offline environment, pre-cache 'facebook/dinov2-small' and set HF_HUB_OFFLINE=1."
+    },
+    "production": {
+      "model_id": "production",
+      "architecture": "MobileNetV3-Large",
+      "role": "Explicit Rollback Option",
+      "checkpoint_path": "ml/artifacts/best.pt",
+      "expected_sha256": "c362915969e3d08c86cfa687bb3bbc51e2549be3ade3e0addb5bcc12560ed58e",
+      "file_size_bytes": 17198293,
+      "input_resolution": [224, 224],
+      "normalization": {
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225]
+      },
+      "evaluation_metrics": {
+        "field_validation_top1_acc": 0.3981,
+        "field_validation_macro_f1": 0.3760,
+        "plantdoc_held_out_unconstrained_acc": 0.4407,
+        "plantdoc_held_out_unconstrained_f1": 0.4359,
+        "independent_field_unconstrained_acc": 0.4434,
+        "independent_field_unconstrained_f1": 0.4236
+      },
+      "runtime_notes": "Self-contained PyTorch state_dict for MobileNetV3-Large. Can be selected by setting DISEASE_MODEL_BACKBONE=production or passing model=production in the API."
+    }
+  }
+}

@@ -58,12 +58,12 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
 
   if (submitted) {
     return (
-      <div className="card" style={{ padding: '20px', textAlign: 'center', background: 'var(--semantic-success-bg)', border: '1px solid var(--semantic-success-border)' }}>
-        <Check size={28} color="var(--semantic-success)" style={{ margin: '0 auto 6px' }} />
-        <h4 style={{ fontSize: '14px', color: 'var(--semantic-success-text)', margin: '0 0 4px' }}>
+      <div className="card" style={{ padding: '24px', textAlign: 'center', background: 'var(--semantic-success-bg)', border: '1px solid var(--semantic-success-border)' }}>
+        <Check size={28} color="var(--semantic-success-text)" style={{ margin: '0 auto 8px' }} />
+        <h4 style={{ fontSize: '15px', color: 'var(--semantic-success-text)', margin: '0 0 6px', fontWeight: 700 }}>
           Thank You for Closing the Feedback Loop!
         </h4>
-        <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--semantic-success-text)' }}>
+        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-primary)' }}>
           Your field observation has been logged to the AgriMind continuous agronomic audit registry (Run ID: {runId}).
         </p>
       </div>
@@ -72,16 +72,16 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
 
   return (
     <div className="card">
-      <div className="card-header" style={{ padding: '12px 18px' }}>
+      <div className="card-header" style={{ padding: '14px 18px', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <MessageSquare size={16} color="var(--forest-primary)" />
-          <h3 style={{ fontSize: '14px', margin: 0 }}>WAS THIS ADVISORY USEFUL?</h3>
+          <MessageSquare size={18} color="var(--forest-dark)" />
+          <h3 style={{ fontSize: '15px', margin: 0 }}>WAS THIS ADVISORY USEFUL?</h3>
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
             type="button"
             className={`btn btn-sm ${rating === 'yes' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '4px 8px', fontSize: '11px' }}
+            style={{ padding: '5px 10px', fontSize: '11.5px', gap: '5px' }}
             onClick={() => setRating('yes')}
           >
             <ThumbsUp size={12} />
@@ -90,7 +90,7 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
           <button
             type="button"
             className={`btn btn-sm ${rating === 'partially' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '4px 8px', fontSize: '11px' }}
+            style={{ padding: '5px 10px', fontSize: '11.5px', gap: '5px' }}
             onClick={() => setRating('partially')}
           >
             <HelpCircle size={12} />
@@ -99,7 +99,7 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
           <button
             type="button"
             className={`btn btn-sm ${rating === 'no' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '4px 8px', fontSize: '11px' }}
+            style={{ padding: '5px 10px', fontSize: '11.5px', gap: '5px' }}
             onClick={() => setRating('no')}
           >
             <ThumbsDown size={12} />
@@ -108,15 +108,15 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
         </div>
       </div>
 
-      <div className="card-body" style={{ padding: '14px 18px' }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="card-body" style={{ padding: '16px 18px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div>
             <label className="form-label" style={{ fontSize: '12px' }}>
               Field Action Taken by Farmer *
             </label>
             <input
               className="input"
-              style={{ fontSize: '12.5px', padding: '7px 10px' }}
+              style={{ fontSize: '13px', padding: '9px 12px' }}
               placeholder="e.g. Sprayed recommended fungicide; deferred fertilizer due to rain"
               value={actionTaken}
               onChange={e => setActionTaken(e.target.value)}
@@ -130,8 +130,8 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
                 Reporter Verification Role
               </label>
               <select
-                className="input"
-                style={{ fontSize: '12px', padding: '7px 8px' }}
+                className="select"
+                style={{ fontSize: '12px', padding: '8px 10px' }}
                 value={reporterType}
                 onChange={e => setReporterType(e.target.value)}
               >
@@ -146,8 +146,8 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
                 Follow-Up Interval
               </label>
               <select
-                className="input"
-                style={{ fontSize: '12px', padding: '7px 8px' }}
+                className="select"
+                style={{ fontSize: '12px', padding: '8px 10px' }}
                 value={daysPostApp}
                 onChange={e => setDaysPostApp(e.target.value)}
               >
@@ -163,8 +163,8 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
                 Outcome Classification
               </label>
               <select
-                className="input"
-                style={{ fontSize: '12px', padding: '7px 8px' }}
+                className="select"
+                style={{ fontSize: '12px', padding: '8px 10px' }}
                 value={outcomeCategory}
                 onChange={e => setOutcomeCategory(e.target.value)}
               >
@@ -183,7 +183,7 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
               </label>
               <input
                 className="input"
-                style={{ fontSize: '12.5px', padding: '7px 10px' }}
+                style={{ fontSize: '13px', padding: '9px 12px' }}
                 placeholder="e.g. Leaf spot halted; foliage greening observed"
                 value={outcomeReported}
                 onChange={e => setOutcomeReported(e.target.value)}
@@ -195,7 +195,7 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
               </label>
               <input
                 className="input"
-                style={{ fontSize: '12.5px', padding: '7px 10px' }}
+                style={{ fontSize: '13px', padding: '9px 12px' }}
                 placeholder="e.g. Follow-up soil check in 10 days"
                 value={comment}
                 onChange={e => setComment(e.target.value)}
@@ -203,12 +203,12 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
             </div>
           </div>
 
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4', background: 'var(--bg-surface-soft)', padding: '6px 10px', borderRadius: '4px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.45', background: 'var(--bg-surface-soft)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
             <strong>Research Methodology Notice:</strong> Farmer self-reported outcomes provide valuable qualitative field telemetry. To establish formal causal efficacy, observations undergo verification against weather logs and KVK agronomic trials.
           </div>
 
           {error && (
-            <div style={{ fontSize: '12px', color: 'var(--semantic-danger)', fontWeight: 500 }}>
+            <div style={{ fontSize: '12px', color: 'var(--semantic-danger-text)', fontWeight: 500, background: 'var(--semantic-danger-bg)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--semantic-danger-border)' }}>
               {error}
             </div>
           )}
@@ -218,7 +218,7 @@ export function FeedbackCard({ runId, onFeedbackSubmit }: FeedbackCardProps) {
               type="submit"
               disabled={loading || !actionTaken.trim()}
               className="btn btn-primary btn-sm"
-              style={{ padding: '6px 14px' }}
+              style={{ padding: '8px 16px', gap: '6px' }}
             >
               <Send size={13} />
               <span>{loading ? 'Submitting…' : 'Submit Field Feedback'}</span>

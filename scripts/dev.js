@@ -1,4 +1,4 @@
-﻿// scripts/dev.js
+// scripts/dev.js
 // One-command development runner for AgriMind
 // Starts FastAPI backend (port 8000) and Next.js frontend (port 3000) concurrently.
 
@@ -241,7 +241,9 @@ async function main() {
   let backendReady = false;
   let frontendReady = false;
   const startTime = Date.now();
-  const timeoutMs = 45000;
+  const timeoutMs = process.env.AGRIMIND_STARTUP_TIMEOUT
+    ? Number(process.env.AGRIMIND_STARTUP_TIMEOUT) * 1000
+    : 60000;
 
   const readyInterval = setInterval(async () => {
     if (!backendReady) {

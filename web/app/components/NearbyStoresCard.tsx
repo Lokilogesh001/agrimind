@@ -115,7 +115,7 @@ export function NearbyStoresCard({
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Store size={18} color="var(--forest-primary)" />
+            <Store size={18} color="var(--forest-dark)" />
             <h3 style={{ fontSize: '15px', margin: 0, fontWeight: 700, letterSpacing: '0.02em' }}>
               NEARBY AGRICULTURAL INPUT STORES
             </h3>
@@ -125,22 +125,21 @@ export function NearbyStoresCard({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {/* Radius selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
-            <Compass size={13} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
+            <Compass size={13} color="var(--forest-dark)" />
             <span>Radius:</span>
             <select
               value={radius}
               onChange={(e) => handleRadiusChange(Number(e.target.value))}
               disabled={loading}
+              className="select"
               style={{
-                fontSize: '11px',
-                padding: '2px 6px',
+                fontSize: '11.5px',
+                padding: '3px 8px',
+                width: 'auto',
                 borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
                 cursor: 'pointer',
               }}
             >
@@ -158,7 +157,7 @@ export function NearbyStoresCard({
                 ? 'SEARCHING...'
                 : stores.length > 0
                 ? `${stores.length} VERIFIED STORE${stores.length > 1 ? 'S' : ''}`
-                : 'NO VERIFIED STORES'
+                : 'NO STORES'
             }
             variant={stores.length > 0 ? 'success' : 'neutral'}
             size="sm"
@@ -167,35 +166,39 @@ export function NearbyStoresCard({
       </div>
 
       <div className="card-body">
-        {/* Farm Location Telemetry (Privacy Protected: Exposes Village / District / State, NOT raw coordinates) */}
+        {/* Farm Location Info Bar */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '10px 12px',
+            alignItems: 'center',
             background: 'var(--bg-surface-soft)',
+            padding: '10px 14px',
             borderRadius: 'var(--radius-sm)',
-            marginBottom: '14px',
-            fontSize: '12px',
-            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-subtle)',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+            gap: '8px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MapPin size={14} color="var(--forest-primary)" style={{ flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+            <MapPin size={14} color="var(--forest-dark)" />
             <span>
-              <strong>Farm Location:</strong> {locationName || 'Farm location registered'}
-              {' — '}
-              <span style={{ color: 'var(--text-muted)' }}>Search radius: {radius} km</span>
+              Searching near: <strong style={{ color: 'var(--text-primary)' }}>{locationName || 'Current Farm Location'}</strong>
+              {hasCoordinates && (
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                  ({coordinates!.lat!.toFixed(4)}°, {coordinates!.lon!.toFixed(4)}°)
+                </span>
+              )}
             </span>
           </div>
 
           <button
             onClick={() => handleRadiusChange(radius)}
             disabled={loading}
-            className="btn btn-outline btn-sm"
-            style={{ padding: '3px 8px', fontSize: '11px', gap: '4px' }}
-            title="Refresh nearby businesses"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '11px', padding: '3px 8px', gap: '4px' }}
+            type="button"
           >
             <RefreshCw size={11} className={loading ? 'spin' : ''} />
             <span>Refresh</span>
@@ -206,21 +209,21 @@ export function NearbyStoresCard({
         {loading && (
           <div
             style={{
-              padding: '24px 16px',
+              padding: '28px 16px',
               textAlign: 'center',
               background: 'var(--bg-surface-soft)',
               borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border-color)',
             }}
           >
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--forest-primary)', fontWeight: 600, fontSize: '13.5px', marginBottom: '8px' }}>
-              <RefreshCw size={16} className="spin" />
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--forest-dark)', fontWeight: 600, fontSize: '13.5px', marginBottom: '8px' }}>
+              <div className="spinner" style={{ width: '16px', height: '16px' }} />
               <span>Finding nearby agricultural input stores...</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '320px', margin: '0 auto' }}>
               <div>Location resolved ✓</div>
-              <div>Searching nearby agricultural businesses...</div>
-              <div>Finding verified contact details...</div>
+              <div>Searching verified agricultural businesses...</div>
+              <div>Retrieving contact & location coordinates...</div>
             </div>
           </div>
         )}
@@ -230,13 +233,13 @@ export function NearbyStoresCard({
           <div
             style={{
               textAlign: 'center',
-              padding: '20px 16px',
+              padding: '24px 16px',
               background: 'var(--bg-surface-soft)',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-sm)',
             }}
           >
-            <AlertCircle size={24} color="#d97706" style={{ margin: '0 auto 8px' }} />
+            <AlertCircle size={24} color="var(--semantic-warning-text)" style={{ margin: '0 auto 8px' }} />
             <h4 style={{ fontSize: '13.5px', color: 'var(--text-primary)', margin: '0 0 4px', fontWeight: 600 }}>
               Store discovery is temporarily unavailable.
             </h4>
@@ -255,19 +258,19 @@ export function NearbyStoresCard({
                 style={{
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',
-                  padding: '14px',
-                  background: 'var(--bg-surface)',
+                  padding: '16px',
+                  background: 'var(--bg-surface-soft)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
-                  transition: 'box-shadow 0.15s ease',
+                  transition: 'border-color 0.15s ease',
                 }}
               >
                 {/* Header: Store Name, Distance & Verified Badge */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {store.name}
                       </span>
                       <span
@@ -276,10 +279,11 @@ export function NearbyStoresCard({
                           alignItems: 'center',
                           gap: '3px',
                           fontSize: '10.5px',
-                          padding: '1px 6px',
+                          padding: '2px 7px',
                           borderRadius: '10px',
-                          background: 'rgba(22, 101, 52, 0.1)',
-                          color: '#15803d',
+                          background: 'var(--semantic-success-bg)',
+                          border: '1px solid var(--semantic-success-border)',
+                          color: 'var(--semantic-success-text)',
                           fontWeight: 600,
                         }}
                       >
@@ -300,10 +304,11 @@ export function NearbyStoresCard({
                       style={{
                         fontSize: '12px',
                         fontWeight: 700,
-                        color: 'var(--forest-primary)',
-                        background: 'var(--bg-surface-soft)',
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius-sm)',
+                        color: 'var(--forest-dark)',
+                        background: 'var(--forest-tint)',
+                        border: '1px solid var(--forest-tint-border)',
+                        padding: '3px 10px',
+                        borderRadius: 'var(--radius-pill)',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -315,16 +320,16 @@ export function NearbyStoresCard({
                 {/* Address */}
                 {store.address && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    <MapPin size={13} color="var(--text-muted)" style={{ marginTop: '2px', flexShrink: 0 }} />
+                    <MapPin size={13} color="var(--forest-dark)" style={{ marginTop: '2px', flexShrink: 0 }} />
                     <span>{store.address}</span>
                   </div>
                 )}
 
-                {/* Metadata: Phone, Opening Hours, Rating (Only displayed if provided by verified source) */}
+                {/* Metadata: Phone, Opening Hours, Rating */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text-secondary)' }}>
                   {store.phone && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Phone size={12} color="var(--forest-primary)" />
+                      <Phone size={12} color="var(--forest-dark)" />
                       <span>{store.phone}</span>
                     </div>
                   )}
@@ -337,21 +342,22 @@ export function NearbyStoresCard({
                   )}
 
                   {store.rating !== null && store.rating !== undefined && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <Star size={12} fill="#eab308" color="#eab308" />
-                      <span style={{ fontWeight: 600 }}>{store.rating.toFixed(1)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Star size={12} fill="#F59E0B" color="#F59E0B" />
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{store.rating.toFixed(1)}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Stock & Price Verification Badges (Mandatory: Zero Fabrication) */}
+                {/* Stock & Price Verification Badges */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
-                    padding: '6px 10px',
-                    background: 'var(--bg-surface-soft)',
+                    padding: '8px 12px',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: '11px',
                     color: 'var(--text-secondary)',
@@ -360,26 +366,26 @@ export function NearbyStoresCard({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Product availability:</span>
-                    <strong style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>
                       {store.product_stock || 'Not verified'}
                     </strong>
                   </div>
                   <span style={{ color: 'var(--border-color)' }}>•</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Current retailer price:</span>
-                    <strong style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>
                       {store.retailer_price || 'Not verified'}
                     </strong>
                   </div>
                 </div>
 
                 {/* Action Buttons: Call Store, Directions, Website */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
                   {store.phone && (
                     <a
                       href={`tel:${store.phone.replace(/\s+/g, '')}`}
                       className="btn btn-outline btn-sm"
-                      style={{ padding: '5px 12px', fontSize: '11.5px', gap: '5px' }}
+                      style={{ padding: '6px 14px', fontSize: '11.5px', gap: '5px' }}
                     >
                       <Phone size={12} />
                       <span>Call Store</span>
@@ -392,7 +398,7 @@ export function NearbyStoresCard({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-primary btn-sm"
-                      style={{ padding: '5px 12px', fontSize: '11.5px', gap: '5px' }}
+                      style={{ padding: '6px 14px', fontSize: '11.5px', gap: '5px' }}
                     >
                       <Navigation size={12} />
                       <span>Directions</span>
@@ -405,7 +411,7 @@ export function NearbyStoresCard({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-outline btn-sm"
-                      style={{ padding: '5px 12px', fontSize: '11.5px', gap: '5px' }}
+                      style={{ padding: '6px 14px', fontSize: '11.5px', gap: '5px' }}
                     >
                       <ExternalLink size={12} />
                       <span>Visit Website</span>
@@ -422,18 +428,18 @@ export function NearbyStoresCard({
           <div
             style={{
               textAlign: 'center',
-              padding: '24px 16px',
+              padding: '28px 16px',
               background: 'var(--bg-surface-soft)',
               border: '1px dashed var(--border-color)',
               borderRadius: 'var(--radius-sm)',
             }}
           >
-            <Building size={28} color="var(--text-muted)" style={{ margin: '0 auto 10px' }} />
+            <Building size={28} color="var(--forest-dark)" style={{ margin: '0 auto 10px' }} />
             <h4 style={{ fontSize: '14px', color: 'var(--text-primary)', margin: '0 0 6px', fontWeight: 600 }}>
               No verified agricultural input stores were found near this location.
             </h4>
             <div style={{ textAlign: 'left', maxWidth: '380px', margin: '0 auto 14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Try:</p>
+              <p style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--text-primary)' }}>Try:</p>
               <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: 1.6 }}>
                 <li>expanding the search radius using the dropdown above</li>
                 <li>checking the local Krishi Vigyan Kendra (KVK)</li>
@@ -445,6 +451,7 @@ export function NearbyStoresCard({
               onClick={() => handleRadiusChange(Math.min(50, radius + 15))}
               className="btn btn-outline btn-sm"
               style={{ fontSize: '11.5px', gap: '5px' }}
+              type="button"
             >
               <Compass size={12} />
               <span>Expand search to {Math.min(50, radius + 15)} km</span>

@@ -65,10 +65,10 @@ export function ActionPlan({
       <div className="card" id="action-plan-section">
         <div className="card-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckSquare size={17} color="var(--forest-primary)" />
+            <CheckSquare size={18} color="var(--forest-dark)" />
             <h3 style={{ fontSize: '15px', margin: 0 }}>WHAT SHOULD I DO?</h3>
           </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
             Unified Coordinated Operational Plan
           </span>
         </div>
@@ -184,10 +184,10 @@ export function ActionPlan({
     <div className="card" id="action-plan-section">
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CheckSquare size={17} color="var(--forest-primary)" />
+          <CheckSquare size={18} color="var(--forest-dark)" />
           <h3 style={{ fontSize: '15px', margin: 0 }}>WHAT SHOULD I DO?</h3>
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
           3-Step Action Workflow
         </span>
       </div>

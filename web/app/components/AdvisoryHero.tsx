@@ -3,12 +3,10 @@
 import React from 'react';
 import {
   ShieldAlert,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-  AlertTriangle,
   ArrowRight,
   Info,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { StatusBadge, BadgeVariant } from './StatusBadge';
 
@@ -70,7 +68,7 @@ export function AdvisoryHero({
     badgeVariant = 'warning';
     cardClass = 'priority-warning';
     heroTitle = 'Field Applications Delayed';
-    shortAction = 'Suspend all spraying and chemical top-dressing due to high rainfall risk.';
+    shortAction = 'Suspend all spraying and chemical top-dressing due to elevated precipitation risk.';
   } else if (isFertilizer) {
     priorityBadge = 'ACTION REQUIRED';
     badgeVariant = 'brand';
@@ -99,7 +97,7 @@ export function AdvisoryHero({
         {/* Top Header Row */}
         <div className="hero-header-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span className="eyebrow" style={{ color: 'var(--text-secondary)' }}>
+            <span className="eyebrow">
               TODAY'S ADVISORY
             </span>
             <StatusBadge
@@ -119,7 +117,7 @@ export function AdvisoryHero({
                 fontWeight: 700,
                 color: 'var(--forest-dark)',
                 background: 'var(--forest-tint)',
-                padding: '2px 8px',
+                padding: '3px 10px',
                 borderRadius: '999px',
                 border: '1px solid var(--forest-tint-border)',
               }}
@@ -137,10 +135,10 @@ export function AdvisoryHero({
         {/* Active Disease Diagnosis Banner if Present */}
         {hasDiseaseSignal && (
           <div className="hero-diagnosis-banner">
-            <ShieldAlert size={20} color="var(--semantic-danger)" style={{ flexShrink: 0 }} />
+            <ShieldAlert size={22} color="var(--semantic-danger)" style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
+                <strong style={{ fontSize: '14.5px', color: 'var(--text-primary)' }}>
                   {diseaseDisplayName}
                 </strong>
                 {disease?.confidence !== undefined && (
@@ -153,16 +151,17 @@ export function AdvisoryHero({
                     fontSize: '10.5px',
                     fontWeight: 700,
                     textTransform: 'uppercase',
-                    padding: '1px 6px',
+                    padding: '2px 8px',
                     borderRadius: '4px',
                     background: disease?.severity === 'high' ? 'var(--semantic-danger-bg)' : 'var(--semantic-warning-bg)',
+                    border: `1px solid ${disease?.severity === 'high' ? 'var(--semantic-danger-border)' : 'var(--semantic-warning-border)'}`,
                     color: disease?.severity === 'high' ? 'var(--semantic-danger-text)' : 'var(--semantic-warning-text)',
                   }}
                 >
                   {disease?.severity ? `${disease.severity} severity` : 'Detected'}
                 </span>
               </div>
-              <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+              <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 {disease?.crop_mismatch
                   ? 'Note: Model detected potential crop mismatch. Disease action is safety-guarded.'
                   : disease?.actionable
@@ -179,11 +178,11 @@ export function AdvisoryHero({
         </p>
 
         {/* Action Prompt */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div className="hero-action-prompt" style={{ flex: 1 }}>
-            <Info size={16} color="var(--forest-primary)" style={{ flexShrink: 0 }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          <div className="hero-action-prompt" style={{ flex: 1, minWidth: '260px' }}>
+            <Info size={18} color="var(--forest-dark)" style={{ flexShrink: 0 }} />
             <span>
-              <strong>Recommended Action:</strong> {shortAction}
+              <strong style={{ color: 'var(--forest-dark)' }}>Recommended Action:</strong> {shortAction}
             </span>
           </div>
 
@@ -192,6 +191,7 @@ export function AdvisoryHero({
               onClick={onScrollToAction}
               className="btn btn-primary btn-sm"
               style={{ whiteSpace: 'nowrap' }}
+              type="button"
             >
               <span>View Action Plan</span>
               <ArrowRight size={14} />

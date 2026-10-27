@@ -34,12 +34,12 @@ export function EvidencePanel({ evidenceList = [] }: EvidencePanelProps) {
 
   if (!evidenceList || evidenceList.length === 0) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-        <BookOpen size={24} color="var(--text-muted)" style={{ margin: '0 auto 8px' }} />
-        <h4 style={{ fontSize: '14px', color: 'var(--text-primary)', margin: 0 }}>
+      <div style={{ padding: '28px 20px', textAlign: 'center', background: 'var(--bg-surface-soft)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+        <BookOpen size={26} color="var(--forest-dark)" style={{ margin: '0 auto 8px' }} />
+        <h4 style={{ fontSize: '14px', color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
           No Agronomic Evidence Documents Retrieved
         </h4>
-        <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+        <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
           Standard deterministic rules were applied directly without external document retrieval.
         </p>
       </div>
@@ -64,12 +64,12 @@ export function EvidencePanel({ evidenceList = [] }: EvidencePanelProps) {
         const previewText = item.text ? item.text.slice(0, 160).trim() + '…' : '';
 
         return (
-          <div key={idx} className="card" style={{ boxShadow: 'var(--shadow-xs)' }}>
-            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div key={idx} className="card" style={{ background: 'var(--bg-surface-soft)', border: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileText size={16} color="var(--forest-primary)" />
-                  <strong style={{ fontSize: '13.5px', color: 'var(--forest-deep)' }}>
+                  <FileText size={16} color="var(--forest-dark)" />
+                  <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
                     {sourceDoc}
                   </strong>
                 </div>
@@ -111,13 +111,13 @@ export function EvidencePanel({ evidenceList = [] }: EvidencePanelProps) {
 
               {/* Regional Applicability Warning if Low Regional Fit */}
               {badges.location_match && badges.location_match.toUpperCase() === 'LOW' && (
-                <div style={{ padding: '6px 10px', background: 'rgba(217, 119, 6, 0.08)', borderLeft: '3px solid #d97706', borderRadius: '4px', fontSize: '11px', color: '#b45309' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--semantic-warning-bg)', border: '1px solid var(--semantic-warning-border)', borderLeftWidth: '3px', borderLeftColor: 'var(--semantic-warning)', borderRadius: '4px', fontSize: '11.5px', color: 'var(--semantic-warning-text)', lineHeight: 1.45 }}>
                   <strong>National Guideline Baseline:</strong> High statutory authority, but regional applicability is generalized. For localized spray intervals and district varieties, consult the nearest TNAU KVK center.
                 </div>
               )}
 
               {/* Text Preview or Full Text */}
-              <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 {isExpanded ? item.text : previewText}
               </p>
 
@@ -127,7 +127,7 @@ export function EvidencePanel({ evidenceList = [] }: EvidencePanelProps) {
                   type="button"
                   onClick={() => toggleExpand(idx)}
                   className="btn btn-outline btn-sm"
-                  style={{ fontSize: '11.5px', padding: '3px 10px' }}
+                  style={{ fontSize: '11.5px', padding: '4px 12px' }}
                 >
                   {isExpanded ? (
                     <>

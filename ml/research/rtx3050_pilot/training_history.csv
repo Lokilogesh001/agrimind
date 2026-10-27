@@ -1,3 +1,0 @@
-stage,epoch,train_loss,val_accuracy,val_macro_f1,val_weighted_f1,val_ece,mean_confidence
-warmup,1,3.925,0.287,0.266,0.266,0.124757,0.3967
-warmup,2,3.2757,0.2963,0.2697,0.2697,0.119972,0.3988

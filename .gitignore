@@ -51,6 +51,8 @@ web/CLAUDE.md
 # ML artifacts & raw datasets (preserve validated production checkpoint best.pt)
 ml/artifacts/*
 !ml/artifacts/best.pt
+!ml/artifacts/MODEL_MANIFEST.json
+!ml/artifacts/MODELS_README.md
 ml/research/**/*.pt
 ml/research/**/runs/
 *.npy

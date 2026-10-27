@@ -138,12 +138,12 @@ if (-not (Test-Path -LiteralPath (Join-Path $WebDir "node_modules"))) {
     }
 }
 
-# 3. Check for pre-existing port conflicts
+# 3. Check and clean up pre-existing port conflicts
 function Test-PortListening ($Port) {
     try {
         $client = New-Object System.Net.Sockets.TcpClient
         $connect = $client.BeginConnect("127.0.0.1", $Port, $null, $null)
-        $wait = $connect.AsyncWaitHandle.WaitOne(300, $false)
+        $wait = $connect.AsyncWaitHandle.WaitOne(200, $false)
         if ($wait) {
             $client.EndConnect($connect)
             $client.Close()
@@ -155,34 +155,46 @@ function Test-PortListening ($Port) {
 }
 
 if (Test-PortListening 8000) {
-    Write-AgriErr "Port 8000 is already in use. Please terminate any conflicting process before starting AgriMind."
-    exit 1
+    Write-AgriLog "Port 8000 is occupied by a stale process. Releasing..." "Yellow"
+    Stop-PortProcess 8000
+    Start-Sleep -Milliseconds 600
 }
 
 if (Test-PortListening 3000) {
-    Write-AgriErr "Port 3000 is already in use. Please terminate any conflicting process before starting AgriMind."
-    exit 1
+    Write-AgriLog "Port 3000 is occupied by a stale process. Releasing..." "Yellow"
+    Stop-PortProcess 3000
+    Start-Sleep -Milliseconds 600
 }
 
-# 4. Start Child Processes
+# 4. Prepare Logs and Start Child Processes
+$LogsDir = Join-Path $Root "logs"
+if (-not (Test-Path -LiteralPath $LogsDir)) {
+    New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
+}
+$BackendLog = Join-Path $LogsDir "backend.log"
+# Clear previous run log
+if (Test-Path -LiteralPath $BackendLog) {
+    Remove-Item -LiteralPath $BackendLog -Force -ErrorAction SilentlyContinue
+}
+
 $backendProc = $null
 $frontendProc = $null
 
 try {
-    # Start Backend
-    Write-AgriLog "Starting backend..."
+    # Start Backend with unbuffered diagnostics redirected to log
+    Write-AgriLog "Starting backend (logging to $BackendLog)..."
     $backendInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $backendInfo.FileName = $PythonExe
-    $backendInfo.Arguments = "-m uvicorn $BackendApp --host 127.0.0.1 --port 8000"
+    $backendInfo.FileName = "cmd.exe"
+    $backendInfo.Arguments = "/c `"`"$PythonExe`" -u -m uvicorn $BackendApp --host 127.0.0.1 --port 8000 > `"$BackendLog`" 2>&1`""
     $backendInfo.WorkingDirectory = $Root
     $backendInfo.UseShellExecute = $false
-    $backendInfo.RedirectStandardInput = $true
     $backendProc = [System.Diagnostics.Process]::Start($backendInfo)
 
     if (-not $backendProc -or $backendProc.HasExited) {
         Write-AgriErr "Failed to launch backend process."
         exit 1
     }
+    Write-AgriLog "Backend spawned with PID $($backendProc.Id)." "Cyan"
 
     # Start Frontend
     Write-AgriLog "Starting frontend..."
@@ -191,23 +203,30 @@ try {
     $frontendInfo.Arguments = "run dev"
     $frontendInfo.WorkingDirectory = $WebDir
     $frontendInfo.UseShellExecute = $false
-    $frontendInfo.RedirectStandardInput = $true
     $frontendProc = [System.Diagnostics.Process]::Start($frontendInfo)
 
     if (-not $frontendProc -or $frontendProc.HasExited) {
         Write-AgriErr "Failed to launch frontend process."
         exit 1
     }
+    Write-AgriLog "Frontend spawned with PID $($frontendProc.Id)." "Cyan"
 
     # 5. Wait for readiness
     $backendReady = $false
     $frontendReady = $false
-    $timeoutSeconds = 30
+    $timeoutSeconds = if ($env:AGRIMIND_STARTUP_TIMEOUT) { [int]$env:AGRIMIND_STARTUP_TIMEOUT } else { 60 }
     $startTime = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastReport = 0
 
     while ($startTime.Elapsed.TotalSeconds -lt $timeoutSeconds) {
         if ($backendProc.HasExited) {
-            Write-AgriErr "Backend process exited prematurely with code $($backendProc.ExitCode)."
+            Write-AgriErr "Backend process exited prematurely with exit code $($backendProc.ExitCode)."
+            if (Test-Path -LiteralPath $BackendLog) {
+                Write-Host "`n--- Backend Diagnostic Traceback ---" -ForegroundColor Yellow
+                Get-Content -LiteralPath $BackendLog -Tail 30
+                Write-Host "------------------------------------`n" -ForegroundColor Yellow
+            }
+            Write-Host "[AgriMind] ACTION: Check $BackendLog for details." -ForegroundColor Yellow
             exit 1
         }
         if ($frontendProc.HasExited) {
@@ -215,14 +234,21 @@ try {
             exit 1
         }
 
-        # Check backend
+        # Check backend with fast non-blocking TCP check followed by HTTP health query
         if (-not $backendReady) {
-            try {
-                $resp = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
-                if ($resp -and $resp.StatusCode -eq 200) {
-                    $backendReady = $true
+            if (Test-PortListening 8000) {
+                try {
+                    $req = [System.Net.HttpWebRequest]::Create("http://127.0.0.1:8000/health")
+                    $req.Timeout = 1500
+                    $resp = $req.GetResponse()
+                    if ($resp -and [int]$resp.StatusCode -eq 200) {
+                        $backendReady = $true
+                    }
+                    $resp.Close()
+                } catch {
+                    # Port open, app still warming up lifespan
                 }
-            } catch {}
+            }
         }
 
         # Check frontend
@@ -236,11 +262,25 @@ try {
             break
         }
 
-        Start-Sleep -Milliseconds 500
+        # Progress reporting every 5 seconds
+        $elapsedSec = [int]$startTime.Elapsed.TotalSeconds
+        if ($elapsedSec -ge ($lastReport + 5)) {
+            $lastReport = $elapsedSec
+            $waitTarget = if (-not $backendReady) { "backend API" } else { "frontend server" }
+            Write-AgriLog "Waiting for $waitTarget to initialize... (${elapsedSec}s / ${timeoutSeconds}s)" "Yellow"
+        }
+
+        Start-Sleep -Milliseconds 400
     }
 
     if (-not $backendReady) {
         Write-AgriErr "Backend failed to become healthy on http://127.0.0.1:8000 within $timeoutSeconds seconds."
+        if (Test-Path -LiteralPath $BackendLog) {
+            Write-Host "`n--- Last 30 Lines of Backend Log ---" -ForegroundColor Yellow
+            Get-Content -LiteralPath $BackendLog -Tail 30
+            Write-Host "------------------------------------`n" -ForegroundColor Yellow
+        }
+        Write-Host "[AgriMind] ACTION: Set AGRIMIND_STARTUP_TIMEOUT=90 if model initialization needs more time." -ForegroundColor Yellow
         exit 1
     }
 
@@ -249,9 +289,9 @@ try {
         exit 1
     }
 
-    Write-AgriLog "Backend: http://127.0.0.1:8000" "Green"
-    Write-AgriLog "Frontend: http://localhost:3000" "Green"
-    Write-Host "[AgriMind] Both services are running. Press Ctrl+C to terminate." -ForegroundColor Cyan
+    Write-AgriLog "Backend API:  http://127.0.0.1:8000 (Swagger: http://127.0.0.1:8000/docs)" "Green"
+    Write-AgriLog "Frontend Web: http://localhost:3000" "Green"
+    Write-Host "[AgriMind] Both services are running smoothly. Press Ctrl+C to terminate." -ForegroundColor Cyan
 
     # 6. Keep both running simultaneously and monitor lifecycle
     while (-not $backendProc.HasExited -and -not $frontendProc.HasExited) {
@@ -277,3 +317,4 @@ finally {
     Stop-PortProcess 3000
     Write-Host "[AgriMind] All services stopped cleanly." -ForegroundColor Green
 }
+

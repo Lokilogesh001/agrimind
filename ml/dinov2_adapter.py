@@ -210,8 +210,8 @@ def dinov2_inference_transform() -> transforms.Compose:
 class DINOv2LoRAPredictor:
     """Inference predictor for DINOv2-Small LoRA candidate."""
 
-    DEFAULT_CHECKPOINT = "ml/research/pretrained_benchmark/lora_experiments/checkpoints/dinov2_lora_r4_b4_best.pt"
-    ALT_CHECKPOINT = "ml/artifacts/dinov2_lora_r4_b4_best.pt"
+    DEFAULT_CHECKPOINT = "ml/artifacts/dinov2_lora_r4_b4_best.pt"
+    ALT_CHECKPOINT = "ml/research/pretrained_benchmark/lora_experiments/checkpoints/dinov2_lora_r4_b4_best.pt"
     EXPECTED_SHA256 = "8ae555c2054fd518edb5382519cca4fba9d2bff4bc039636fddc4b14edf1aa68"
 
     def __init__(

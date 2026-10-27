@@ -72,7 +72,7 @@ export function WhyDecisionCard({
     safetyRule = 'Safety Rule A (Soil Safety): Exact chemical fertilizer dosage blocked until soil test is verified.';
   }
 
-  // Farmer-facing values prioritized from OpenAI explanation when available
+  // Farmer-facing values prioritized from LLM explanation when available
   const whyMatters = llmExplanation?.why_this_decision || primaryReason;
   const agronomicContext = llmExplanation?.additional_agronomic_context || [];
   const cautions = (llmExplanation?.important_cautions && llmExplanation.important_cautions.length > 0)
@@ -90,13 +90,13 @@ export function WhyDecisionCard({
         onClick={() => setExpanded(!expanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <HelpCircle size={17} color="var(--forest-primary)" />
+          <HelpCircle size={18} color="var(--forest-dark)" />
           <h3 style={{ fontSize: '15px', margin: 0 }}>WHY THIS DECISION? (AGRONOMIC RATIONALE)</h3>
         </div>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          style={{ fontSize: '11px', padding: '3px 8px' }}
+          style={{ fontSize: '11px', padding: '4px 10px' }}
         >
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           <span>{expanded ? 'Collapse' : 'Explain'}</span>
@@ -107,17 +107,17 @@ export function WhyDecisionCard({
         <div className="card-body">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* 1. WHY THIS MATTERS */}
-            <div style={{ background: 'var(--bg-surface-soft)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--forest-primary)' }}>
+            <div style={{ background: 'var(--bg-surface-soft)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--forest-dark)', border: '1px solid var(--border-subtle)', borderLeftWidth: '3px', borderLeftColor: 'var(--forest-dark)' }}>
               <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--forest-dark)', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>
                 WHY THIS MATTERS
               </span>
-              <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.55 }}>
                 {whyMatters}
               </p>
             </div>
 
             {/* 2. ADDITIONAL AGRONOMIC INSIGHT */}
-            <div style={{ background: 'var(--bg-surface-soft)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--teal-primary)' }}>
+            <div style={{ background: 'var(--bg-surface-soft)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', borderLeftWidth: '3px', borderLeftColor: 'var(--teal-dark)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                 <Sparkles size={14} color="var(--teal-dark)" />
                 <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--teal-dark)', letterSpacing: '0.04em' }}>
@@ -125,7 +125,7 @@ export function WhyDecisionCard({
                 </span>
               </div>
               {agronomicContext.length > 0 ? (
-                <ul style={{ margin: '4px 0 8px 18px', padding: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <ul style={{ margin: '4px 0 8px 18px', padding: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                   {agronomicContext.map((c, i) => (
                     <li key={i} style={{ marginBottom: '4px' }}>{c}</li>
                   ))}
@@ -142,15 +142,15 @@ export function WhyDecisionCard({
 
             {/* 3. IMPORTANT CAUTIONS */}
             <div style={{ background: 'var(--forest-tint)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--forest-tint-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <ShieldCheck size={15} color="var(--forest-dark)" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <ShieldCheck size={16} color="var(--forest-dark)" />
                 <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--forest-dark)', letterSpacing: '0.04em' }}>
                   IMPORTANT CAUTIONS & SAFETY RULES
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {cautions.map((caution, i) => (
-                  <p key={i} style={{ margin: 0, fontSize: '12.5px', color: 'var(--forest-deep)', lineHeight: 1.45 }}>
+                  <p key={i} style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
                     • {caution}
                   </p>
                 ))}
@@ -158,7 +158,7 @@ export function WhyDecisionCard({
             </div>
 
             {/* 4. WHAT TO MONITOR */}
-            <div style={{ background: 'var(--bg-surface-soft)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--mint-primary)' }}>
+            <div style={{ background: 'var(--bg-surface-soft)', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', borderLeftWidth: '3px', borderLeftColor: 'var(--mint-primary)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                 <Clock size={14} color="var(--mint-primary)" />
                 <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--mint-primary)', letterSpacing: '0.04em' }}>
@@ -167,7 +167,7 @@ export function WhyDecisionCard({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {monitorTriggers.map((trig, i) => (
-                  <p key={i} style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  <p key={i} style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                     • {trig}
                   </p>
                 ))}
@@ -176,8 +176,8 @@ export function WhyDecisionCard({
 
             {/* Conflicting Signals reconciled by Decision Engine if any */}
             {conflicts && conflicts.length > 0 && (
-              <div style={{ marginTop: '4px' }}>
-                <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ marginTop: '6px' }}>
+                <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Signals Reconciled by Decision Engine ({conflicts.length})
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
@@ -185,25 +185,25 @@ export function WhyDecisionCard({
                     <div
                       key={i}
                       style={{
-                        padding: '10px 12px',
-                        background: 'var(--bg-surface)',
+                        padding: '10px 14px',
+                        background: 'var(--bg-surface-soft)',
                         border: '1px solid var(--border-color)',
                         borderRadius: 'var(--radius-sm)',
-                        fontSize: '12px',
+                        fontSize: '12.5px',
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                         <strong style={{ color: 'var(--text-primary)' }}>
                           {c.agent_a?.toUpperCase()} vs {c.agent_b?.toUpperCase()} ({c.issue || c.conflict_type})
                         </strong>
-                        <span style={{ fontSize: '10px', color: 'var(--forest-primary)', fontWeight: 700 }}>
+                        <span style={{ fontSize: '10.5px', color: 'var(--forest-dark)', fontWeight: 700, textTransform: 'uppercase' }}>
                           RESOLVED
                         </span>
                       </div>
                       <p style={{ margin: '2px 0 4px', color: 'var(--text-secondary)' }}>
                         {c.evidence}
                       </p>
-                      <div style={{ fontSize: '11.5px', color: 'var(--forest-dark)', fontWeight: 600 }}>
+                      <div style={{ fontSize: '12px', color: 'var(--forest-dark)', fontWeight: 600 }}>
                         ↳ Resolution: {c.resolution}
                       </div>
                     </div>

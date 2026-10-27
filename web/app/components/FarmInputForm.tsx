@@ -17,6 +17,8 @@ import {
   ChevronDown,
   FileCheck,
   FileText,
+  Tag,
+  Check,
 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 
@@ -84,7 +86,7 @@ export function FarmInputForm({
   loading,
   error,
 }: FarmInputFormProps) {
-  // Model Selection & Leaf Crop Conditioning (DINOv2 LoRA is now the active default)
+  // Model Selection & Leaf Crop Conditioning (DINOv2 LoRA is the active default)
   const [diseaseModel, setDiseaseModel] = useState<'dinov2_lora' | 'production'>('dinov2_lora');
   const [leafCropSelection, setLeafCropSelection] = useState<string>('none');
 
@@ -104,21 +106,21 @@ export function FarmInputForm({
 
   // Crop & Stage
   const [crop, setCrop] = useState('Tomato');
-  const [growthStage, setGrowthStage] = useState('vegetative');
+  const [growthStage, setGrowthStage] = useState('flowering');
 
   // Soil Mode
-  const [soilMode, setSoilMode] = useState<'automatic' | 'manual' | 'measured' | 'report'>('automatic');
+  const [soilMode, setSoilMode] = useState<'automatic' | 'manual' | 'measured' | 'report'>('measured');
   const [soilType, setSoilType] = useState('Red Soil');
-  const [n, setN] = useState('');
-  const [p, setP] = useState('');
-  const [k, setK] = useState('');
+  const [n, setN] = useState('180');
+  const [p, setP] = useState('24');
+  const [k, setK] = useState('190');
 
   // Soil Report File State (Mode D)
   const [soilReportFile, setSoilReportFile] = useState<File | null>(null);
   const [soilReportDragOver, setSoilReportDragOver] = useState(false);
   const soilReportInputRef = useRef<HTMLInputElement>(null);
 
-  // Optional Context
+  // Context Fields
   const [farmArea, setFarmArea] = useState('2.5');
   const [irrigationMethod, setIrrigationMethod] = useState('Drip');
   const [sowingDate, setSowingDate] = useState('');
@@ -199,507 +201,557 @@ export function FarmInputForm({
   };
 
   return (
-    <div className="card">
-      <div className="card-header">
+    <div className="form-workspace-card">
+      <div className="card-header" style={{ borderBottom: '1px solid var(--border-color)', padding: '18px 24px' }}>
         <div>
-          <span className="eyebrow">FIELD TELEMETRY INPUT</span>
-          <h2 style={{ fontSize: '17px', margin: '2px 0 0' }}>Farm Scenario Parameters</h2>
+          <span className="eyebrow">FIELD TELEMETRY & SCENARIO CONFIGURATION</span>
+          <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '3px 0 0', color: 'var(--text-primary)' }}>
+            Farm Parameter Workspace
+          </h2>
         </div>
-        <StatusBadge label="VERIFIED GEOCODING" variant="brand" icon="check" size="sm" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <StatusBadge label="HIGH-PRECISION GEOCODING" variant="brand" icon="check" size="sm" />
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Coordinates: {selectedLocation.lat?.toFixed(3)}, {selectedLocation.lon?.toFixed(3)}
+          </span>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* ---------------- SECTION 1: FARM DETAILS ---------------- */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-            <MapPin size={16} color="var(--forest-primary)" />
-            <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>1. Farm & Location Details</h3>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Location Autocomplete */}
-            <div style={{ position: 'relative' }}>
-              <label className="form-label">
-                <span>Farm Location (Village / District / State)</span>
-                {selectedLocation.name && (
-                  <span style={{ fontSize: '11px', color: 'var(--forest-primary)', fontWeight: 600 }}>
-                    ✓ Resolved
-                  </span>
-                )}
-              </label>
-              <input
-                className="input"
-                value={locationQuery}
-                placeholder="e.g. Madurai, Tamil Nadu or Nashik, Maharashtra"
-                onChange={e => {
-                  setLocationQuery(e.target.value);
-                  setShowLocationDropdown(true);
-                }}
-                onFocus={() => setShowLocationDropdown(true)}
-              />
-
-              {showLocationDropdown && locationResults.length > 0 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    zIndex: 50,
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-sm)',
-                    boxShadow: 'var(--shadow-md)',
-                    maxHeight: '220px',
-                    overflowY: 'auto',
-                    marginTop: '4px',
-                  }}
-                >
-                  {locationResults.map((loc, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '9px 12px',
-                        borderBottom: '1px solid var(--border-subtle)',
-                        cursor: 'pointer',
-                        fontSize: '12.5px',
-                      }}
-                      onMouseDown={() => {
-                        setSelectedLocation({
-                          name: loc.display_name,
-                          lat: loc.latitude,
-                          lon: loc.longitude,
-                        });
-                        setLocationQuery(loc.display_name);
-                        setShowLocationDropdown(false);
-                      }}
-                    >
-                      <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{loc.name}</strong>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{loc.display_name}</span>
-                    </div>
-                  ))}
-                </div>
+      <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+        {/* ========================================================================= */}
+        {/* THREE HORIZONTAL COLUMNS GRID                                             */}
+        {/* ========================================================================= */}
+        <div className="form-horizontal-grid">
+          {/* ---------------- COLUMN 1: FARM & CROP DETAILS ---------------- */}
+          <div className="form-column-card">
+            <div className="form-column-header">
+              <div className="form-column-title">
+                <MapPin size={16} color="var(--teal-accent)" />
+                <span>1. Farm & Crop Details</span>
+              </div>
+              {selectedLocation.name && (
+                <span style={{ fontSize: '11px', color: 'var(--teal-accent)', fontWeight: 600 }}>
+                  ✓ Geocoded
+                </span>
               )}
             </div>
 
-            {/* Crop & Growth Stage */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label className="form-label">Selected Crop</label>
-                <select className="select" value={crop} onChange={e => setCrop(e.target.value)}>
-                  {Object.entries(CROP_CATEGORIES).map(([cat, crops]) => (
-                    <optgroup key={cat} label={`── ${cat} ──`}>
-                      {crops.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="form-label">Growth Stage</label>
-                <select className="select" value={growthStage} onChange={e => setGrowthStage(e.target.value)}>
-                  {STAGES.map(s => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Optional Area & Irrigation */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-              <div>
-                <label className="form-label">Farm Area (acres)</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Location Input with Autocomplete */}
+              <div style={{ position: 'relative' }}>
+                <label className="form-label">
+                  <span>Farm Location (Village / District / State)</span>
+                </label>
                 <input
-                  type="number"
-                  step="0.1"
                   className="input"
-                  placeholder="e.g. 2.5"
-                  value={farmArea}
-                  onChange={e => setFarmArea(e.target.value)}
+                  value={locationQuery}
+                  placeholder="e.g. Madurai, Tamil Nadu or Nashik, Maharashtra"
+                  onChange={e => {
+                    setLocationQuery(e.target.value);
+                    setShowLocationDropdown(true);
+                  }}
+                  onFocus={() => setShowLocationDropdown(true)}
+                />
+
+                {showLocationDropdown && locationResults.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 50,
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      boxShadow: 'var(--shadow-md)',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      marginTop: '4px',
+                    }}
+                  >
+                    {locationResults.map((loc, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '10px 14px',
+                          borderBottom: '1px solid var(--border-subtle)',
+                          cursor: 'pointer',
+                          fontSize: '12.5px',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseDown={() => {
+                          setSelectedLocation({
+                            name: loc.display_name,
+                            lat: loc.latitude,
+                            lon: loc.longitude,
+                          });
+                          setLocationQuery(loc.display_name);
+                          setShowLocationDropdown(false);
+                        }}
+                      >
+                        <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{loc.name}</strong>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{loc.display_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Crop & Growth Stage Side by Side */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label">Selected Crop</label>
+                  <select className="select" value={crop} onChange={e => setCrop(e.target.value)}>
+                    {Object.entries(CROP_CATEGORIES).map(([cat, crops]) => (
+                      <optgroup key={cat} label={`── ${cat} ──`}>
+                        {crops.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label">Growth Stage</label>
+                  <select className="select" value={growthStage} onChange={e => setGrowthStage(e.target.value)}>
+                    {STAGES.map(s => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Farm Area & Irrigation Side by Side */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label">Farm Area (acres)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="input"
+                    placeholder="e.g. 2.5"
+                    value={farmArea}
+                    onChange={e => setFarmArea(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="form-label">Irrigation Method</label>
+                  <select className="select" value={irrigationMethod} onChange={e => setIrrigationMethod(e.target.value)}>
+                    <option value="Drip">Drip Irrigation</option>
+                    <option value="Furrow / Flood">Furrow / Flood</option>
+                    <option value="Sprinkler">Sprinkler</option>
+                    <option value="Rainfed">Rainfed</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Sowing Date [Optional] */}
+              <div>
+                <label className="form-label">
+                  <span>Sowing / Planting Date</span>
+                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Optional</span>
+                </label>
+                <input
+                  type="date"
+                  className="input"
+                  value={sowingDate}
+                  onChange={e => setSowingDate(e.target.value)}
                 />
               </div>
+            </div>
+          </div>
 
-              <div>
-                <label className="form-label">Irrigation Method</label>
-                <select className="select" value={irrigationMethod} onChange={e => setIrrigationMethod(e.target.value)}>
-                  <option value="Drip">Drip Irrigation</option>
-                  <option value="Furrow / Flood">Furrow / Flood</option>
-                  <option value="Sprinkler">Sprinkler</option>
-                  <option value="Rainfed">Rainfed</option>
-                </select>
+          {/* ---------------- COLUMN 2: SOIL INFORMATION ---------------- */}
+          <div className="form-column-card">
+            <div className="form-column-header">
+              <div className="form-column-title">
+                <FlaskConical size={16} color="var(--teal-accent)" />
+                <span>2. Soil Nutrient Method</span>
+              </div>
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  color: soilMode === 'measured' ? 'var(--semantic-success-text)' : (soilMode === 'report' ? 'var(--semantic-warning-text)' : 'var(--text-muted)'),
+                  textTransform: 'uppercase',
+                }}
+              >
+                {soilMode === 'measured' ? 'MEASURED (HIGH)' : (soilMode === 'report' ? 'REPORT ATTACHED' : (soilMode === 'manual' ? 'MANUAL TEXTURE' : 'LOCATION ESTIMATE'))}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* 2x2 Mode Selector Buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button
+                  type="button"
+                  className={`btn-soil-mode ${soilMode === 'automatic' ? 'active' : ''}`}
+                  onClick={() => setSoilMode('automatic')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span style={{ fontWeight: 700 }}>A. Estimated</span>
+                    {soilMode === 'automatic' && <Check size={13} color="var(--teal-accent)" />}
+                  </div>
+                  <span style={{ fontSize: '10.5px', opacity: 0.85, marginTop: '2px', display: 'block' }}>
+                    Regional location profile
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`btn-soil-mode ${soilMode === 'measured' ? 'active' : ''}`}
+                  onClick={() => setSoilMode('measured')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span style={{ fontWeight: 700 }}>B. Health Card</span>
+                    {soilMode === 'measured' && <Check size={13} color="var(--teal-accent)" />}
+                  </div>
+                  <span style={{ fontSize: '10.5px', opacity: 0.85, marginTop: '2px', display: 'block' }}>
+                    Measured NPK nutrients
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`btn-soil-mode ${soilMode === 'manual' ? 'active' : ''}`}
+                  onClick={() => setSoilMode('manual')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span style={{ fontWeight: 700 }}>C. Soil Type</span>
+                    {soilMode === 'manual' && <Check size={13} color="var(--teal-accent)" />}
+                  </div>
+                  <span style={{ fontSize: '10.5px', opacity: 0.85, marginTop: '2px', display: 'block' }}>
+                    Texture classification
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`btn-soil-mode ${soilMode === 'report' ? 'active' : ''}`}
+                  onClick={() => setSoilMode('report')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span style={{ fontWeight: 700 }}>D. Report Upload</span>
+                    {soilMode === 'report' && <Check size={13} color="var(--teal-accent)" />}
+                  </div>
+                  <span style={{ fontSize: '10.5px', opacity: 0.85, marginTop: '2px', display: 'block' }}>
+                    Soil lab document PDF
+                  </span>
+                </button>
+              </div>
+
+              {/* Mode Specific Body */}
+              {soilMode === 'automatic' && (
+                <div style={{ padding: '12px 14px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  Regional soil characteristics derived automatically from geocoded coordinates. NPK values are not synthesized to prevent unverified chemical dosage.
+                </div>
+              )}
+
+              {soilMode === 'measured' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="npk-grid">
+                    <div className="npk-field">
+                      <div className="npk-label-group">
+                        <span className="npk-name">Nitrogen (N)</span>
+                        <span className="npk-unit">kg/ha</span>
+                      </div>
+                      <input
+                        type="number"
+                        className="input npk-input"
+                        placeholder="e.g. 180"
+                        value={n}
+                        onChange={e => setN(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+
+                    <div className="npk-field">
+                      <div className="npk-label-group">
+                        <span className="npk-name">Phosphorus (P)</span>
+                        <span className="npk-unit">kg/ha</span>
+                      </div>
+                      <input
+                        type="number"
+                        className="input npk-input"
+                        placeholder="e.g. 24"
+                        value={p}
+                        onChange={e => setP(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+
+                    <div className="npk-field">
+                      <div className="npk-label-group">
+                        <span className="npk-name">Potassium (K)</span>
+                        <span className="npk-unit">kg/ha</span>
+                      </div>
+                      <input
+                        type="number"
+                        className="input npk-input"
+                        placeholder="e.g. 190"
+                        value={k}
+                        onChange={e => setK(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Enter values from your soil health card or certified laboratory report.
+                  </span>
+                </div>
+              )}
+
+              {soilMode === 'manual' && (
+                <div>
+                  <label className="form-label">Select Regional Soil Texture</label>
+                  <select className="select" value={soilType} onChange={e => setSoilType(e.target.value)}>
+                    {SOIL_TYPES.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '6px' }}>
+                    Used for drainage capacity and retention timing calculations.
+                  </span>
+                </div>
+              )}
+
+              {soilMode === 'report' && (
+                <div>
+                  {!soilReportFile ? (
+                    <div
+                      className={`soil-report-dropzone ${soilReportDragOver ? 'dragover' : ''}`}
+                      style={{ padding: '16px' }}
+                      onDragOver={e => {
+                        e.preventDefault();
+                        setSoilReportDragOver(true);
+                      }}
+                      onDragLeave={() => setSoilReportDragOver(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setSoilReportDragOver(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleSoilReportChange(file);
+                      }}
+                      onClick={() => soilReportInputRef.current?.click()}
+                    >
+                      <Upload size={20} color="var(--teal-accent)" />
+                      <div style={{ textAlign: 'center' }}>
+                        <strong style={{ fontSize: '12.5px', color: 'var(--text-primary)', display: 'block' }}>
+                          Upload Soil Test Report
+                        </strong>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          PDF, JPG, PNG accepted (Stored for field record)
+                        </span>
+                      </div>
+                      <input
+                        ref={soilReportInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf,image/jpeg,image/png,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={e => handleSoilReportChange(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="soil-report-dropzone has-file" style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <FileCheck size={18} color="var(--teal-accent)" style={{ flexShrink: 0 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              ✓ {soilReportFile.name}
+                            </div>
+                            <div style={{ fontSize: '10.5px', color: 'var(--semantic-warning-text)' }}>
+                              {formatFileSize(soilReportFile.size)} · Extraction Pending
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSoilReportChange(null);
+                          }}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: '10.5px', flexShrink: 0 }}
+                        >
+                          <X size={11} />
+                          <span>Remove</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block', marginTop: '6px', lineHeight: 1.4 }}>
+                    To receive immediate NPK dosage analysis today, select <strong>Mode B (Health Card)</strong>.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ---------------- COLUMN 3: DISEASE DETECTION ---------------- */}
+          <div className="form-column-card form-col-disease">
+            <div className="form-column-header">
+              <div className="form-column-title">
+                <ImageIcon size={16} color="var(--teal-accent)" />
+                <span>3. Disease Vision Telemetry</span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Optional</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Compact Leaf Image Dropzone */}
+              <div
+                style={{
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: imagePreview ? '12px 16px' : '16px 14px',
+                  textAlign: 'center',
+                  background: image ? 'var(--forest-tint)' : 'var(--bg-surface-elevated)',
+                  position: 'relative',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {imagePreview ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <img
+                      src={imagePreview}
+                      alt="Crop leaf preview"
+                      style={{ width: '54px', height: '54px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-strong)', flexShrink: 0 }}
+                    />
+                    <div style={{ textAlign: 'left', minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {image?.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--teal-accent)', marginTop: '2px' }}>
+                        ✓ Ready for {diseaseModel === 'dinov2_lora' ? 'DINOv2 LoRA' : 'MobileNetV3'} inference
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleImageChange(null)}
+                        style={{ background: 'none', border: 'none', color: 'var(--semantic-danger-text)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', padding: 0, marginTop: '4px' }}
+                      >
+                        ✕ Remove image
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload size={22} color="var(--teal-accent)" style={{ margin: '0 auto 6px' }} />
+                    <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Drag and drop leaf photo, or click to browse
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      JPG, PNG, WebP · Max 5MB (Optional)
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                      }}
+                      onChange={e => handleImageChange(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Vision Model Architecture & Diagnostic Crop Filter */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px' }}>
+                    Model Architecture
+                  </label>
+                  <select
+                    className="select"
+                    value={diseaseModel}
+                    onChange={e => setDiseaseModel(e.target.value as any)}
+                    style={{ fontSize: '11.5px', padding: '6px 8px' }}
+                  >
+                    <option value="dinov2_lora">DINOv2-Small LoRA (Default)</option>
+                    <option value="production">MobileNetV3 (Baseline)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px' }}>
+                    Crop Conditioning Filter
+                  </label>
+                  <select
+                    className="select"
+                    value={leafCropSelection}
+                    onChange={e => setLeafCropSelection(e.target.value)}
+                    style={{ fontSize: '11.5px', padding: '6px 8px' }}
+                  >
+                    <option value="none">Unconstrained (38 Classes)</option>
+                    <option value="auto">Auto (Match: {crop})</option>
+                    <option value="Tomato">Tomato (10 classes)</option>
+                    <option value="Potato">Potato (3 classes)</option>
+                    <option value="Corn">Corn / Maize (4 classes)</option>
+                    <option value="Apple">Apple (4 classes)</option>
+                    <option value="Grape">Grape (4 classes)</option>
+                    <option value="Pepper">Pepper (2 classes)</option>
+                    <option value="Cherry">Cherry (2 classes)</option>
+                    <option value="Peach">Peach (2 classes)</option>
+                    <option value="Strawberry">Strawberry (2 classes)</option>
+                    <option value="Squash">Squash (1 class)</option>
+                    <option value="Soybean">Soybean (1 class)</option>
+                    <option value="Orange">Orange / Citrus (1 class)</option>
+                    <option value="Blueberry">Blueberry (1 class)</option>
+                    <option value="Raspberry">Raspberry (1 class)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                <strong>Crop-Aware Conditioning:</strong> Probabilities are conditioned on the specified species with cross-crop safety safeguards preventing forced misdiagnosis.
               </div>
             </div>
           </div>
         </div>
 
-        {/* ---------------- SECTION 2: SOIL INFORMATION ---------------- */}
-        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <FlaskConical size={16} color="var(--forest-primary)" />
-              <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>2. Soil Nutrient Input Method</h3>
-            </div>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: soilMode === 'measured' ? 'var(--semantic-success)' : (soilMode === 'report' ? '#d97706' : 'var(--text-muted)'),
-              }}
-            >
-              {soilMode === 'measured' ? 'HIGHER CONFIDENCE (MEASURED)' : (soilMode === 'report' ? 'REPORT ATTACHED (EXTRACTION PENDING)' : (soilMode === 'manual' ? 'MODERATE CONFIDENCE' : 'ESTIMATED / MODERATE'))}
+        {/* ========================================================================= */}
+        {/* FULL-WIDTH MARKET ROW                                                     */}
+        {/* ========================================================================= */}
+        <div className="form-market-row">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <Tag size={15} color="var(--teal-accent)" />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              4. Mandi Economics & Market Price Benchmarking [Optional]
             </span>
           </div>
 
-          {/* Mode Selector Buttons */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '10px' }}>
-            <button
-              type="button"
-              className={`btn btn-sm ${soilMode === 'automatic' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '11.5px', justifyContent: 'flex-start', textAlign: 'left', padding: '8px 10px' }}
-              onClick={() => setSoilMode('automatic')}
-            >
-              <div>
-                <div style={{ fontWeight: 700 }}>A. Location-Estimated</div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Lower confidence; unmeasured</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className={`btn btn-sm ${soilMode === 'measured' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '11.5px', justifyContent: 'flex-start', textAlign: 'left', padding: '8px 10px' }}
-              onClick={() => setSoilMode('measured')}
-            >
-              <div>
-                <div style={{ fontWeight: 700 }}>B. Soil Health Card</div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Measured NPK; high confidence</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className={`btn btn-sm ${soilMode === 'manual' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '11.5px', justifyContent: 'flex-start', textAlign: 'left', padding: '8px 10px' }}
-              onClick={() => setSoilMode('manual')}
-            >
-              <div>
-                <div style={{ fontWeight: 700 }}>C. Manual Soil Texture</div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Regional texture profile</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className={`btn btn-sm ${soilMode === 'report' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '11.5px', justifyContent: 'flex-start', textAlign: 'left', padding: '8px 10px' }}
-              onClick={() => setSoilMode('report')}
-            >
-              <div>
-                <div style={{ fontWeight: 700 }}>D. Soil Report Upload</div>
-                <div style={{ fontSize: '10px', opacity: 0.85 }}>Document stored; extraction pending</div>
-              </div>
-            </button>
-          </div>
-
-          {/* Conditional Mode Content: Mode A (Location-Estimated) */}
-          {soilMode === 'automatic' && (
-            <div style={{ padding: '10px 12px', background: 'var(--bg-surface-soft)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              Regional soil profile derived automatically from your farm location. Measured NPK remains unforced to prevent erroneous dosage claims.
-            </div>
-          )}
-
-          {/* Conditional Mode Content: Mode B (Soil Health Card - Aligned 3-Column NPK Grid) */}
-          {soilMode === 'measured' && (
-            <div className="npk-grid">
-              <div className="npk-field">
-                <div className="npk-label-group">
-                  <span className="npk-name">Nitrogen (N)</span>
-                  <span className="npk-unit">kg/ha</span>
-                </div>
-                <input
-                  type="number"
-                  className="input npk-input"
-                  placeholder="e.g. 20"
-                  value={n}
-                  onChange={e => setN(e.target.value)}
-                  min="0"
-                />
-              </div>
-
-              <div className="npk-field">
-                <div className="npk-label-group">
-                  <span className="npk-name">Phosphorus (P)</span>
-                  <span className="npk-unit">kg/ha</span>
-                </div>
-                <input
-                  type="number"
-                  className="input npk-input"
-                  placeholder="e.g. 45"
-                  value={p}
-                  onChange={e => setP(e.target.value)}
-                  min="0"
-                />
-              </div>
-
-              <div className="npk-field">
-                <div className="npk-label-group">
-                  <span className="npk-name">Potassium (K)</span>
-                  <span className="npk-unit">kg/ha</span>
-                </div>
-                <input
-                  type="number"
-                  className="input npk-input"
-                  placeholder="e.g. 70"
-                  value={k}
-                  onChange={e => setK(e.target.value)}
-                  min="0"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Conditional Mode Content: Mode C (Manual Soil Texture) */}
-          {soilMode === 'manual' && (
-            <div style={{ marginTop: '8px' }}>
-              <label className="form-label">Select Soil Texture Type</label>
-              <select className="select" value={soilType} onChange={e => setSoilType(e.target.value)}>
-                {SOIL_TYPES.map(st => (
-                  <option key={st} value={st}>{st}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Conditional Mode Content: Mode D (Soil Report Upload) */}
-          {soilMode === 'report' && (
-            <div style={{ marginTop: '4px' }}>
-              {!soilReportFile ? (
-                <div
-                  className={`soil-report-dropzone ${soilReportDragOver ? 'dragover' : ''}`}
-                  onDragOver={e => {
-                    e.preventDefault();
-                    setSoilReportDragOver(true);
-                  }}
-                  onDragLeave={() => setSoilReportDragOver(false)}
-                  onDrop={e => {
-                    e.preventDefault();
-                    setSoilReportDragOver(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) handleSoilReportChange(file);
-                  }}
-                  onClick={() => soilReportInputRef.current?.click()}
-                >
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--forest-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--forest-dark)' }}>
-                    <Upload size={20} />
-                  </div>
-                  <div>
-                    <strong style={{ fontSize: '13.5px', color: 'var(--text-primary)', display: 'block' }}>
-                      Upload Soil Report
-                    </strong>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
-                      Drag and drop your soil report here, or click to browse
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                      Accepted formats: PDF, JPG, JPEG, PNG
-                    </span>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.4, maxWidth: '340px' }}>
-                    Upload a Soil Health Card or laboratory soil report containing available nutrient measurements.
-                  </p>
-                  <input
-                    ref={soilReportInputRef}
-                    type="file"
-                    accept=".pdf,application/pdf,image/jpeg,image/png,image/webp"
-                    style={{ display: 'none' }}
-                    onChange={e => handleSoilReportChange(e.target.files?.[0] || null)}
-                  />
-                </div>
-              ) : (
-                <div className="soil-report-dropzone has-file">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '12px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-xs)', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--forest-primary)', flexShrink: 0 }}>
-                        <FileCheck size={18} />
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          ✓ {soilReportFile.name}
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '2px', fontWeight: 600 }}>
-                          {soilReportFile.name.split('.').pop()?.toUpperCase() || 'FILE'} · {formatFileSize(soilReportFile.size)} · State: Uploaded (Extraction Pending) — NPK remains unmeasured
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSoilReportChange(null);
-                      }}
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }}
-                    >
-                      <X size={12} />
-                      <span>Remove</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ marginTop: '8px', padding: '10px 12px', background: 'var(--bg-surface-soft)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                <strong>Note on Report Processing:</strong> Automated OCR lab extraction is currently in preview; file is stored for your field advisory record. To calculate exact nutrient deficiency and receive dosage guidance today, please input values directly via <strong>Mode B (Soil Health Card)</strong>.
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ---------------- SECTION 3: CROP DISEASE PHOTO (Section 25) ---------------- */}
-        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ImageIcon size={16} color="var(--forest-primary)" />
-              <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>3. Crop Leaf Photograph [Optional]</h3>
-            </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>JPG, PNG or WebP</span>
-          </div>
-
-          <div
-            style={{
-              border: '2px dashed var(--border-color)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px',
-              textAlign: 'center',
-              background: image ? 'var(--forest-tint)' : 'var(--bg-surface-soft)',
-              transition: 'all 0.2s ease',
-              position: 'relative',
-            }}
-          >
-            {imagePreview ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px' }}>
-                <img
-                  src={imagePreview}
-                  alt="Crop leaf preview"
-                  style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}
-                />
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{image?.name}</div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--forest-dark)' }}>
-                    Ready for {diseaseModel === 'dinov2_lora' ? 'DINOv2-Small Rank-4 LoRA' : 'PyTorch MobileNet'} inference
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleImageChange(null)}
-                    style={{ background: 'none', border: 'none', color: 'var(--semantic-danger)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', padding: 0, marginTop: '4px' }}
-                  >
-                    ✕ Remove image
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <Upload size={22} color="var(--forest-primary)" style={{ margin: '0 auto 6px' }} />
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Drag and drop leaf photo, or click to browse
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Leave empty for clean agronomic data-only advisory.
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    cursor: 'pointer',
-                  }}
-                  onChange={e => handleImageChange(e.target.files?.[0] || null)}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Disease Vision Model Selection & Optional Crop Condition */}
-          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
-                  Vision Model Architecture
-                </label>
-                <select
-                  className="input"
-                  value={diseaseModel}
-                  onChange={e => setDiseaseModel(e.target.value as any)}
-                  style={{ fontSize: '12px', padding: '6px 8px' }}
-                >
-                  <option value="dinov2_lora">DINOv2-Small Rank-4 LoRA (Default)</option>
-                  <option value="production">MobileNetV3 (Rollback Baseline)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
-                  Optional Diagnostic Crop Filter
-                </label>
-                <select
-                  className="input"
-                  value={leafCropSelection}
-                  onChange={e => setLeafCropSelection(e.target.value)}
-                  style={{ fontSize: '12px', padding: '6px 8px' }}
-                >
-                  <option value="none">Unconstrained (All 38 Classes) - Default</option>
-                  <option value="auto">Auto (Match Farm Crop: {crop})</option>
-                  <option value="Tomato">Tomato (10 classes)</option>
-                  <option value="Potato">Potato (3 classes)</option>
-                  <option value="Corn">Corn / Maize (4 classes)</option>
-                  <option value="Apple">Apple (4 classes)</option>
-                  <option value="Grape">Grape (4 classes)</option>
-                  <option value="Pepper">Pepper (2 classes)</option>
-                  <option value="Cherry">Cherry (2 classes)</option>
-                  <option value="Peach">Peach (2 classes)</option>
-                  <option value="Strawberry">Strawberry (2 classes)</option>
-                  <option value="Squash">Squash (1 class)</option>
-                  <option value="Soybean">Soybean (1 class)</option>
-                  <option value="Orange">Orange / Citrus (1 class)</option>
-                  <option value="Blueberry">Blueberry (1 class)</option>
-                  <option value="Raspberry">Raspberry (1 class)</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-              <strong>Crop-Aware Conditioning:</strong> When supplied, probabilities are conditioned on the specified species while cross-crop safety safeguards prevent forced misdiagnosis if visual symptoms diverge.
-            </div>
-          </div>
-        </div>
-
-        {/* ---------------- SECTION 4: MARKET BENCHMARK [Optional] ---------------- */}
-        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="form-market-grid">
             <div>
               <label className="form-label" style={{ fontSize: '11.5px' }}>
-                Mandi Benchmark Price (₹/q) [Optional]
+                <span>Mandi Benchmark Price (₹/quintal)</span>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Optional</span>
               </label>
               <input
                 className="input"
-                placeholder="e.g. 2200"
+                placeholder="e.g. 2000"
                 value={currentPrice}
                 onChange={e => setCurrentPrice(e.target.value)}
               />
             </div>
+
             <div>
               <label className="form-label" style={{ fontSize: '11.5px' }}>
-                Price Trend (comma-separated) [Optional]
+                <span>Historical Price Trend (comma-separated ₹/q)</span>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Optional</span>
               </label>
               <input
                 className="input"
-                placeholder="e.g. 2000,2100,2200"
+                placeholder="e.g. 1950,1980,2000"
                 value={priceHistory}
                 onChange={e => setPriceHistory(e.target.value)}
               />
@@ -707,32 +759,36 @@ export function FarmInputForm({
           </div>
         </div>
 
-        {/* Submit Execution Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn btn-primary"
-          style={{ width: '100%', padding: '12px 18px', fontSize: '14px', marginTop: '6px' }}
-        >
-          {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="spinner" style={{ width: '16px', height: '16px' }} />
-              <span>Orchestrating Specialist Agents…</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sprout size={16} />
-              <span>Run AgriMind Crop Advisory</span>
+        {/* ========================================================================= */}
+        {/* FULL-WIDTH PRIMARY ACTION ROW                                             */}
+        {/* ========================================================================= */}
+        <div className="form-action-row">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-run-advisory"
+            id="btn-run-advisory-primary"
+          >
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="spinner" style={{ width: '18px', height: '18px' }} />
+                <span>Orchestrating Autonomous Specialist Cluster…</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Sprout size={19} />
+                <span>Run AgriMind Crop Advisory</span>
+              </div>
+            )}
+          </button>
+
+          {error && (
+            <div style={{ padding: '12px 16px', background: 'var(--semantic-danger-bg)', border: '1px solid var(--semantic-danger-border)', borderRadius: 'var(--radius-sm)', color: 'var(--semantic-danger-text)', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
           )}
-        </button>
-
-        {error && (
-          <div style={{ padding: '10px 12px', background: 'var(--semantic-danger-bg)', border: '1px solid var(--semantic-danger-border)', borderRadius: 'var(--radius-sm)', color: 'var(--semantic-danger-text)', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            <span>{error}</span>
-          </div>
-        )}
+        </div>
       </form>
     </div>
   );

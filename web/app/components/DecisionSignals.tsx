@@ -109,7 +109,6 @@ export function DecisionSignals({
     }
   }
 
-
   // 2. SOIL SIGNAL
   let soilStatusText = 'Soil profile balanced';
   let soilBadgeVariant: BadgeVariant = 'success';
@@ -193,7 +192,8 @@ export function DecisionSignals({
         <button
           onClick={() => setShowTechnical(!showTechnical)}
           className="btn btn-secondary btn-sm"
-          style={{ fontSize: '11px', padding: '4px 8px' }}
+          style={{ fontSize: '11px', padding: '5px 10px' }}
+          type="button"
         >
           {showTechnical ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           <span>{showTechnical ? 'Hide Telemetry' : 'Show Telemetry'}</span>
@@ -220,19 +220,19 @@ export function DecisionSignals({
                 : 'Standard protective safety margins applied.'}
             </p>
             {showTechnical && weatherAvail && (
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <div>Composite Risk: <strong>{Number(weather?.rainfall_risk || 0).toFixed(3)}</strong> (Horizon: {weather?.forecast_horizon_hours || 48}h)</div>
-                <div>Max Precip Prob: <strong>{weather?.precipitation_probability ?? 0}%</strong> · Rain: <strong>{Number(weather?.rainfall_amount_mm || 0).toFixed(1)} mm</strong></div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div>Composite Risk: <strong style={{ color: 'var(--text-primary)' }}>{Number(weather?.rainfall_risk || 0).toFixed(3)}</strong> (Horizon: {weather?.forecast_horizon_hours || 48}h)</div>
+                <div>Max Precip Prob: <strong style={{ color: 'var(--text-primary)' }}>{weather?.precipitation_probability ?? 0}%</strong> · Rain: <strong style={{ color: 'var(--text-primary)' }}>{Number(weather?.rainfall_amount_mm || 0).toFixed(1)} mm</strong></div>
                 {weather?.peak_intensity_mm_hr !== undefined && (
-                  <div>Peak Intensity: <strong>{weather.peak_intensity_mm_hr} mm/hr</strong></div>
+                  <div>Peak Intensity: <strong style={{ color: 'var(--text-primary)' }}>{weather.peak_intensity_mm_hr} mm/hr</strong></div>
                 )}
                 <div style={{ marginTop: '2px', display: 'flex', gap: '8px' }}>
-                  <span>Foliar Washoff: <strong style={{ color: weather?.washoff_risk_level === 'HIGH' ? '#dc2626' : 'inherit' }}>{weather?.washoff_risk_level || 'LOW'}</strong></span>
+                  <span>Foliar Washoff: <strong style={{ color: weather?.washoff_risk_level === 'HIGH' ? 'var(--semantic-danger-text)' : 'var(--text-primary)' }}>{weather?.washoff_risk_level || 'LOW'}</strong></span>
                   <span>·</span>
-                  <span>Leaching: <strong style={{ color: weather?.leaching_risk_level === 'HIGH' ? '#dc2626' : 'inherit' }}>{weather?.leaching_risk_level || 'LOW'}</strong></span>
+                  <span>Leaching: <strong style={{ color: weather?.leaching_risk_level === 'HIGH' ? 'var(--semantic-danger-text)' : 'var(--text-primary)' }}>{weather?.leaching_risk_level || 'LOW'}</strong></span>
                 </div>
                 {weather?.risk_formula && (
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '3px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '3px', background: 'var(--bg-surface)', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
                     {weather.risk_formula}
                   </div>
                 )}
@@ -258,10 +258,10 @@ export function DecisionSignals({
                 : 'Measured soil health card recommended.'}
             </p>
             {showTechnical && (
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
-                NPK Status: <strong>{soil?.npk_available ? 'MEASURED' : 'UNMEASURED'}</strong>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                NPK Status: <strong style={{ color: 'var(--text-primary)' }}>{soil?.npk_available ? 'MEASURED' : 'UNMEASURED'}</strong>
                 {soil?.overall_deficiency !== null && soil?.overall_deficiency !== undefined && (
-                  <span> · Deficiency: <strong>{Number(soil.overall_deficiency).toFixed(2)}</strong></span>
+                  <span> · Deficiency: <strong style={{ color: 'var(--text-primary)' }}>{Number(soil.overall_deficiency).toFixed(2)}</strong></span>
                 )}
               </div>
             )}
@@ -285,8 +285,8 @@ export function DecisionSignals({
                 : 'No acute foliar pathogens observed.'}
             </p>
             {showTechnical && disease?.predicted_class && (
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
-                Confidence: <strong>{Math.round((disease.confidence || 0) * 100)}%</strong> · Gate: <strong>{disease.actionable ? 'PASSED' : 'BLOCKED'}</strong>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                Confidence: <strong style={{ color: 'var(--text-primary)' }}>{Math.round((disease.confidence || 0) * 100)}%</strong> · Gate: <strong style={{ color: 'var(--text-primary)' }}>{disease.actionable ? 'PASSED' : 'BLOCKED'}</strong>
               </div>
             )}
           </div>
@@ -309,9 +309,9 @@ export function DecisionSignals({
                 : 'Agricultural pricing telemetry offline.'}
             </p>
             {showTechnical && marketAvail && (
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
-                Score: <strong>{Number(market?.market_score || 0).toFixed(2)}</strong>
-                {market?.current_price ? <span> · Rate: <strong>₹{market.current_price}</strong></span> : null}
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                Score: <strong style={{ color: 'var(--text-primary)' }}>{Number(market?.market_score || 0).toFixed(2)}</strong>
+                {market?.current_price ? <span> · Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{market.current_price}</strong></span> : null}
               </div>
             )}
           </div>

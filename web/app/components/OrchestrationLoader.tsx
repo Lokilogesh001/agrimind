@@ -34,12 +34,12 @@ export function OrchestrationLoader({ hasImage = false }: OrchestrationLoaderPro
     {
       name: 'Soil Agent',
       desc: 'Evaluating nutrient targets & deficiency thresholds',
-      icon: <Sprout size={17} color="var(--forest-primary)" />,
+      icon: <Sprout size={17} color="var(--forest-dark)" />,
       doneAt: 1,
     },
     {
       name: 'Disease Agent',
-      desc: hasImage ? 'Running PyTorch MobileNet disease classification' : 'Checking baseline phytosanitary indicators',
+      desc: hasImage ? 'Running PyTorch vision disease classification' : 'Checking baseline phytosanitary indicators',
       icon: <ShieldAlert size={17} color="var(--semantic-danger)" />,
       doneAt: 2,
     },
@@ -52,22 +52,22 @@ export function OrchestrationLoader({ hasImage = false }: OrchestrationLoaderPro
     {
       name: 'Advisory Engine & Safety Guard',
       desc: 'Applying deterministic agronomic safety rules & conflict policy',
-      icon: <Compass size={17} color="var(--forest-deep)" />,
+      icon: <Compass size={17} color="var(--forest-dark)" />,
       doneAt: 4,
     },
   ];
 
   return (
-    <div className="card" style={{ padding: '28px 24px', textAlign: 'center' }}>
+    <div className="card" style={{ padding: '32px 24px', textAlign: 'center' }}>
       <div style={{ maxWidth: '480px', margin: '0 auto' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', borderRadius: '50%', background: 'var(--forest-tint)', color: 'var(--forest-dark)', marginBottom: '12px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '50%', background: 'var(--forest-tint)', border: '1px solid var(--forest-tint-border)', color: 'var(--forest-dark)', marginBottom: '14px' }}>
           <div className="spinner" style={{ width: '24px', height: '24px', borderWidth: '3px' }} />
         </div>
 
         <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>
           AgriMind Orchestration in Progress
         </h3>
-        <p style={{ margin: '0 0 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+        <p style={{ margin: '0 0 22px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
           Executing LangGraph multi-agent pipeline with deterministic safety verification…
         </p>
 
@@ -86,14 +86,14 @@ export function OrchestrationLoader({ hasImage = false }: OrchestrationLoaderPro
                   padding: '10px 14px',
                   borderRadius: 'var(--radius-sm)',
                   background: isRunning ? 'var(--forest-tint)' : 'var(--bg-surface-soft)',
-                  border: `1px solid ${isRunning ? 'var(--forest-tint-border)' : 'var(--border-subtle)'}`,
+                  border: `1px solid ${isRunning ? 'var(--forest-soft)' : 'var(--border-subtle)'}`,
                   transition: 'all 0.2s ease',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   {ag.icon}
                   <div>
-                    <strong style={{ fontSize: '12.5px', color: isRunning ? 'var(--forest-dark)' : 'var(--text-primary)', display: 'block' }}>
+                    <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
                       {ag.name}
                     </strong>
                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
@@ -104,12 +104,12 @@ export function OrchestrationLoader({ hasImage = false }: OrchestrationLoaderPro
 
                 <div style={{ flexShrink: 0 }}>
                   {isCompleted ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--forest-primary)', fontWeight: 700 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--forest-dark)', fontWeight: 700 }}>
                       <CheckCircle2 size={14} />
                       Completed
                     </span>
                   ) : isRunning ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--forest-dark)', fontWeight: 600 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--forest-dark)', fontWeight: 600 }}>
                       <div className="spinner" style={{ width: '12px', height: '12px' }} />
                       Analyzing
                     </span>

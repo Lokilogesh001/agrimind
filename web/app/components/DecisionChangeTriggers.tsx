@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 
 interface DecisionChangeTriggersProps {
   triggers?: string[];
@@ -56,13 +56,13 @@ export function DecisionChangeTriggers({
         onClick={() => setExpanded(!expanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <RefreshCw size={16} color="var(--forest-primary)" />
+          <RefreshCw size={17} color="var(--forest-dark)" />
           <h3 style={{ fontSize: '15px', margin: 0 }}>WHAT WOULD CHANGE THIS DECISION?</h3>
         </div>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          style={{ fontSize: '11px', padding: '3px 8px' }}
+          style={{ fontSize: '11px', padding: '4px 10px' }}
         >
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           <span>{expanded ? 'Hide Factors' : 'View Triggers'}</span>
@@ -71,7 +71,7 @@ export function DecisionChangeTriggers({
 
       {expanded && (
         <div className="card-body">
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px', lineHeight: 1.5 }}>
             AgriMind continuously evaluates field conditions. This advisory will automatically adapt if any of the following events occur:
           </p>
 
@@ -83,24 +83,20 @@ export function DecisionChangeTriggers({
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '10px',
-                  padding: '10px 12px',
+                  padding: '10px 14px',
                   background: 'var(--bg-surface-soft)',
                   border: '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: '12.5px',
                   color: 'var(--text-primary)',
+                  lineHeight: 1.5,
                 }}
               >
-                <span
-                  style={{
-                    color: 'var(--forest-primary)',
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    marginTop: '2px',
-                  }}
-                >
-                  ⚡
-                </span>
+                <Zap
+                  size={15}
+                  color="var(--forest-dark)"
+                  style={{ flexShrink: 0, marginTop: '2px' }}
+                />
                 <span>{t}</span>
               </div>
             ))}
@@ -108,7 +104,7 @@ export function DecisionChangeTriggers({
             {reEvaluationTrigger && (
               <div
                 style={{
-                  padding: '10px 12px',
+                  padding: '10px 14px',
                   background: 'var(--mint-tint)',
                   border: '1px solid var(--mint-tint-border)',
                   borderRadius: 'var(--radius-sm)',

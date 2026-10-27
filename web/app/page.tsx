@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { FarmContextCard } from './components/FarmContextCard';
 import { AdvisoryHero } from './components/AdvisoryHero';
@@ -17,13 +17,13 @@ import { AuditPanel } from './components/AuditPanel';
 import { FeedbackCard } from './components/FeedbackCard';
 import { FarmInputForm } from './components/FarmInputForm';
 import { OrchestrationLoader } from './components/OrchestrationLoader';
+import { AgentContributions } from './components/AgentContributions';
+import { EvidencePanel } from './components/EvidencePanel';
 import {
   Sprout,
-  Sparkles,
-  HelpCircle,
-  FileCheck,
-  ChevronRight,
-  RotateCcw,
+  ShieldCheck,
+  ChevronDown,
+  ArrowUp,
   SlidersHorizontal,
 } from 'lucide-react';
 
@@ -65,8 +65,6 @@ export default function Home() {
     currentPrice: '2000',
     hasImage: false,
   });
-
-  const [showInputDrawer, setShowInputDrawer] = useState(true);
 
   // Execute advisory run
   const handleRunAdvisory = async (payload: {
@@ -195,7 +193,6 @@ export default function Home() {
       }
 
       setResult(data);
-      // Auto-switch to Advisory view on successful result
       setActiveView('farmer');
     } catch (e: any) {
       setError(e.message || 'Unable to communicate with AgriMind backend.');
@@ -203,6 +200,18 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // Automatically scroll to results on generation
+  useEffect(() => {
+    if (result && !loading) {
+      const el = document.getElementById('advisory-results-section');
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, [result, loading]);
 
   // Submit field feedback
   const handleFeedbackSubmit = async (feedbackData: {
@@ -227,118 +236,144 @@ export default function Home() {
     }
   };
 
+  const scrollToForm = () => {
+    const el = document.getElementById('farm-configuration-workspace');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="app-container">
-      {/* 1. Header with Forest Brand Identity & View Switcher */}
+      {/* 1. Header with Brand Identity, Online Status, and View Switcher */}
       <Header
         activeView={activeView}
         onViewChange={setActiveView}
         apiConnected={!error}
       />
 
-      {/* Main Two-Column Layout */}
-      <main className="dashboard-grid">
-        {/* Left Column: Farm Context Inputs */}
-        <aside className="sidebar-panel">
+      {/* Main Full-Width Workspace Flow */}
+      <main className="workspace-page">
+        {/* 2. Page Title & Context Description */}
+        <div className="page-intro-banner">
+          <div className="eyebrow">
+            <ShieldCheck size={13} />
+            <span>Autonomous Agricultural Decision Support Cluster</span>
+          </div>
+          <h1 className="page-intro-title">
+            Farm Crop Advisory & Field Parameter Workspace
+          </h1>
+          <p className="page-intro-desc">
+            Configure your farm location, soil fertility, and optional leaf disease imagery across the workspace below. AgriMind coordinates specialist meteorology, soil chemistry, pathology, and market intelligence agents to generate an authoritative, safety-guarded field action plan.
+          </p>
+        </div>
+
+        {/* 3. Full-Width Horizontal Farm Configuration Form */}
+        <section id="farm-configuration-workspace" className="form-workspace-section">
           <FarmInputForm
             apiBase={API}
             onRunAdvisory={handleRunAdvisory}
             loading={loading}
             error={error}
           />
-        </aside>
+        </section>
 
-        {/* Right Column: Advisory / Evidence Results */}
-        <section className="main-advisory-content">
-          {/* Loading State: Multi-Agent Orchestration Visualizer */}
-          {loading && (
+        {/* 4. Compact Orchestration Loader (Visible only during processing) */}
+        {loading && (
+          <section className="orchestration-section" style={{ marginTop: '12px' }}>
             <OrchestrationLoader hasImage={activeScenario.hasImage} />
-          )}
+          </section>
+        )}
 
-          {/* Empty State before running advisory */}
-          {!result && !loading && (
-            <div className="empty-state">
-              <div className="empty-state-icon">
-                <Sprout size={28} />
+        {/* 5. Full-Width Advisory Results Section (Appears below the form) */}
+        {result && !loading && (
+          <section id="advisory-results-section" className="results-workspace-section">
+            {/* Results Section Anchor Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', padding: '0 4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="eyebrow">GENERATED ADVISORY OUTPUT</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  · Run ID: {result.run_id?.substring(0, 8)}…
+                </span>
               </div>
-              <h3 className="empty-state-title">
-                Ready for Farm Crop Advisory
-              </h3>
-              <p className="empty-state-desc">
-                Configure your farm location, crop, and soil parameters on the left panel. AgriMind will coordinate specialist meteorology, soil, disease, and market agents to generate an authoritative recommendation.
-              </p>
+              <button
+                type="button"
+                onClick={scrollToForm}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px' }}
+              >
+                <ArrowUp size={12} />
+                <span>Modify Parameters</span>
+              </button>
             </div>
-          )}
 
-          {/* Result Loaded: Render based on active view */}
-          {result && !loading && (
-            <>
-              {/* Context Summary Chips Card */}
-              <FarmContextCard
-                locationName={result.location?.location_name || activeScenario.locationName}
-                crop={result.advisory?.crop?.crop || activeScenario.crop}
-                growthStage={result.advisory?.crop?.growth_stage || activeScenario.growthStage}
-                soilMode={activeScenario.soilMode}
-                soilType={activeScenario.soilType}
-                farmArea={activeScenario.farmArea}
-                irrigationMethod={activeScenario.irrigationMethod}
-                sowingDate={activeScenario.sowingDate}
-                npk={activeScenario.npk}
-              />
+            {/* Farm Context Summary Chips Card */}
+            <FarmContextCard
+              locationName={result.location?.location_name || activeScenario.locationName}
+              crop={result.advisory?.crop?.crop || activeScenario.crop}
+              growthStage={result.advisory?.crop?.growth_stage || activeScenario.growthStage}
+              soilMode={activeScenario.soilMode}
+              soilType={activeScenario.soilType}
+              farmArea={activeScenario.farmArea}
+              irrigationMethod={activeScenario.irrigationMethod}
+              sowingDate={activeScenario.sowingDate}
+              npk={activeScenario.npk}
+            />
 
-              {/* VIEW 1: FARMER-FACING ADVISORY (Default) */}
-              {activeView === 'farmer' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                  {/* HERO: WHAT IS HAPPENING? */}
-                  <AdvisoryHero
-                    recommendation={result.recommendation}
-                    explanation={result.explanation}
-                    confidence={result.confidence}
-                    disease={result.disease}
-                    weatherRisk={result.weather_risk}
-                    soilStatus={result.soil_nutrient_status}
-                    onScrollToAction={scrollToActions}
-                  />
+            {/* VIEW 1: FARMER-FACING ADVISORY (Default) */}
+            {activeView === 'farmer' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '20px' }}>
+                {/* 1. HERO: TODAY'S ADVISORY */}
+                <AdvisoryHero
+                  recommendation={result.recommendation}
+                  explanation={result.explanation}
+                  confidence={result.confidence}
+                  disease={result.disease}
+                  weatherRisk={result.weather_risk}
+                  soilStatus={result.soil_nutrient_status}
+                  onScrollToAction={scrollToActions}
+                />
 
-                  {/* ACTION CARD: WHAT SHOULD I DO? (NOW, NEXT, THEN) */}
-                  <ActionPlan
-                    recommendation={result.recommendation}
-                    crop={activeScenario.crop}
-                    disease={result.disease}
-                    soil={result.soil}
-                    weather={result.weather}
-                    operationalPlan={result.operational_plan}
-                  />
+                {/* 2. ACTION PLAN: WHAT SHOULD I DO? (NOW, NEXT, THEN) */}
+                <ActionPlan
+                  recommendation={result.recommendation}
+                  crop={activeScenario.crop}
+                  disease={result.disease}
+                  soil={result.soil}
+                  weather={result.weather}
+                  operationalPlan={result.operational_plan}
+                />
 
-                  {/* DECISION SIGNALS (Weather, Soil, Disease, Market) */}
-                  <DecisionSignals
-                    weather={result.weather}
-                    soil={result.soil}
-                    disease={result.disease}
-                    market={result.market}
-                  />
+                {/* 3. DECISION SIGNALS (4-Card Telemetry Grid) */}
+                <DecisionSignals
+                  weather={result.weather}
+                  soil={result.soil}
+                  disease={result.disease}
+                  market={result.market}
+                />
 
-                  {/* WHY THIS DECISION? (Explanation) */}
-                  <WhyDecisionCard
-                    recommendation={result.recommendation}
-                    conflicts={result.conflicts}
-                    safetyConstraints={result.safety_constraints}
-                    reEvaluationTrigger={result.re_evaluation_trigger}
-                    weather={result.weather}
-                    soil={result.soil}
-                    disease={result.disease}
-                    llmExplanation={result.llm_explanation}
-                    evidence={result.evidence}
-                  />
+                {/* 4. WHY THIS DECISION? (Agronomic Rationale) */}
+                <WhyDecisionCard
+                  recommendation={result.recommendation}
+                  conflicts={result.conflicts}
+                  safetyConstraints={result.safety_constraints}
+                  reEvaluationTrigger={result.re_evaluation_trigger}
+                  weather={result.weather}
+                  soil={result.soil}
+                  disease={result.disease}
+                  llmExplanation={result.llm_explanation}
+                  evidence={result.evidence}
+                />
 
-                  {/* WHAT WOULD CHANGE THIS DECISION? (Explainability Triggers) */}
-                  <DecisionChangeTriggers
-                    triggers={result.decision_change_triggers}
-                    reEvaluationTrigger={result.re_evaluation_trigger}
-                    recommendation={result.recommendation}
-                  />
+                {/* 5. DECISION CHANGE TRIGGERS (Invalidation thresholds) */}
+                <DecisionChangeTriggers
+                  triggers={result.decision_change_triggers}
+                  reEvaluationTrigger={result.re_evaluation_trigger}
+                  recommendation={result.recommendation}
+                />
 
-                  {/* DISEASE MANAGEMENT (Separated from Fertilizer) */}
+                {/* 6. SPECIALIST MODULES (Disease Management & Soil Nutrition in 2-column grid) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '24px' }}>
                   {result.disease && (
                     <DiseaseActionCard
                       disease={result.disease}
@@ -348,7 +383,6 @@ export default function Home() {
                     />
                   )}
 
-                  {/* NUTRIENT SUPPORT (Separated from Disease Control) */}
                   <NutrientSupportCard
                     soil={result.soil}
                     crop={activeScenario.crop}
@@ -359,8 +393,10 @@ export default function Home() {
                       result.disease.actionable
                     )}
                   />
+                </div>
 
-                  {/* NEARBY AGRICULTURAL STORES (Zero Fabrication) */}
+                {/* 7. LOCAL COMMERCE & PRICE TRANSPARENCY (2-column grid) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '24px' }}>
                   <NearbyStoresCard
                     locationName={result.location?.location_name || activeScenario.locationName}
                     coordinates={{
@@ -370,7 +406,6 @@ export default function Home() {
                     stores={result.nearby_stores || []}
                   />
 
-                  {/* INPUT PRICE & MRP TRANSPARENCY (Fixed P1-01 hardcoded ternary) */}
                   <PriceCard
                     crop={activeScenario.crop}
                     benchmarkPrice={result.market?.benchmark_price ?? (activeScenario.currentPrice ? Number(activeScenario.currentPrice) : null)}
@@ -383,35 +418,52 @@ export default function Home() {
                     marketFormula={result.market?.market_formula}
                     phenologyNote={result.market?.phenology_note}
                   />
-
-                  {/* HOW AGRIMIND REACHED THIS DECISION (Process Path) */}
-                  <DecisionPath
-                    crop={activeScenario.crop}
-                    location={result.location?.location_name || activeScenario.locationName}
-                    recommendation={result.recommendation}
-                    weather={result.weather}
-                    soil={result.soil}
-                    disease={result.disease}
-                    market={result.market}
-                    conflicts={result.conflicts}
-                    safetyConstraints={result.safety_constraints}
-                  />
-
-                  {/* FIELD FEEDBACK LOOP */}
-                  <FeedbackCard
-                    runId={result.run_id}
-                    onFeedbackSubmit={handleFeedbackSubmit}
-                  />
                 </div>
-              )}
 
-              {/* VIEW 2: EVIDENCE & AUDIT (Deep Observability) */}
-              {activeView === 'evidence' && (
+                {/* 8. HOW AGRIMIND REACHED THIS DECISION (Execution Path) */}
+                <DecisionPath
+                  crop={activeScenario.crop}
+                  location={result.location?.location_name || activeScenario.locationName}
+                  recommendation={result.recommendation}
+                  weather={result.weather}
+                  soil={result.soil}
+                  disease={result.disease}
+                  market={result.market}
+                  conflicts={result.conflicts}
+                  safetyConstraints={result.safety_constraints}
+                />
+
+                {/* 9. AGENT CONTRIBUTIONS */}
+                <AgentContributions
+                  weather={result.weather}
+                  soil={result.soil}
+                  disease={result.disease}
+                  market={result.market}
+                  advisory={result.advisory}
+                  finalRecommendation={result.recommendation}
+                />
+
+                {/* 10. ICAR SUPPORTING EVIDENCE */}
+                {result.evidence && result.evidence.length > 0 && (
+                  <EvidencePanel evidenceList={result.evidence} />
+                )}
+
+                {/* 11. FIELD FEEDBACK LOOP */}
+                <FeedbackCard
+                  runId={result.run_id}
+                  onFeedbackSubmit={handleFeedbackSubmit}
+                />
+              </div>
+            )}
+
+            {/* VIEW 2: EVIDENCE & AUDIT (Deep Observability) */}
+            {activeView === 'evidence' && (
+              <div style={{ marginTop: '20px' }}>
                 <AuditPanel result={result} />
-              )}
-            </>
-          )}
-        </section>
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       {/* Modern Accessible Footer */}

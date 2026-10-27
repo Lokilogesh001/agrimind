@@ -82,7 +82,7 @@ export function AgentContributions({
     },
     {
       name: 'Soil Agent',
-      icon: <Sprout size={18} color="var(--forest-primary)" />,
+      icon: <Sprout size={18} color="var(--forest-dark)" />,
       status: npkAvail ? 'MEASURED' : 'UNMEASURED',
       finding: npkAvail
         ? `Deficiency: ${soilDefic.toFixed(2)} (${soil?.priority_nutrient || 'balanced'})`
@@ -119,7 +119,7 @@ export function AgentContributions({
         <div
           key={i}
           style={{
-            background: 'var(--bg-surface)',
+            background: 'var(--bg-surface-soft)',
             border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-md)',
             padding: '14px 16px',
@@ -140,7 +140,7 @@ export function AgentContributions({
             />
           </div>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-surface-soft)', padding: '6px 10px', borderRadius: '4px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-primary)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', padding: '8px 10px', borderRadius: '4px' }}>
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>Key Finding</span>
             {agent.finding}
           </div>
@@ -148,16 +148,16 @@ export function AgentContributions({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', marginTop: '2px' }}>
             <span>
               Decision Impact:{' '}
-              <strong style={{ color: agent.impact === 'HIGH' ? 'var(--semantic-danger)' : agent.impact === 'MODERATE' ? 'var(--semantic-warning)' : 'var(--text-secondary)' }}>
+              <strong style={{ color: agent.impact === 'HIGH' ? 'var(--semantic-danger-text)' : agent.impact === 'MODERATE' ? 'var(--semantic-warning-text)' : 'var(--forest-dark)' }}>
                 {agent.impact}
               </strong>
             </span>
             <span>
-              Conf: <strong>{Math.round(agent.confidence * 100)}%</strong>
+              Conf: <strong style={{ color: 'var(--text-primary)' }}>{Math.round(agent.confidence * 100)}%</strong>
             </span>
           </div>
 
-          <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4, borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
+          <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.45, borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
             {agent.reason}
           </p>
         </div>

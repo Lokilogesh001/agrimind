@@ -59,7 +59,7 @@ export function FarmContextCard({
             Farm Context
           </span>
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
           Active Field Scenario
         </span>
       </div>
@@ -68,7 +68,7 @@ export function FarmContextCard({
         <div className="context-chips-grid">
           <div className="context-chip">
             <span className="context-chip-label">
-              <MapPin size={11} />
+              <MapPin size={11} color="var(--forest-dark)" />
               Location
             </span>
             <span className="context-chip-value" title={locationName}>
@@ -78,7 +78,7 @@ export function FarmContextCard({
 
           <div className="context-chip">
             <span className="context-chip-label">
-              <Sprout size={11} />
+              <Sprout size={11} color="var(--forest-dark)" />
               Crop
             </span>
             <span className="context-chip-value">
@@ -88,7 +88,7 @@ export function FarmContextCard({
 
           <div className="context-chip">
             <span className="context-chip-label">
-              <Calendar size={11} />
+              <Calendar size={11} color="var(--forest-dark)" />
               Growth Stage
             </span>
             <span className="context-chip-value">
@@ -98,7 +98,7 @@ export function FarmContextCard({
 
           <div className="context-chip">
             <span className="context-chip-label">
-              <FlaskConical size={11} />
+              <FlaskConical size={11} color="var(--forest-dark)" />
               Soil Method
             </span>
             <span className="context-chip-value" title={getSoilModeLabel()}>
@@ -109,7 +109,7 @@ export function FarmContextCard({
           {farmArea && (
             <div className="context-chip">
               <span className="context-chip-label">
-                <Ruler size={11} />
+                <Ruler size={11} color="var(--forest-dark)" />
                 Farm Area
               </span>
               <span className="context-chip-value">
@@ -121,7 +121,7 @@ export function FarmContextCard({
           {irrigationMethod && (
             <div className="context-chip">
               <span className="context-chip-label">
-                <Droplets size={11} />
+                <Droplets size={11} color="var(--forest-dark)" />
                 Irrigation
               </span>
               <span className="context-chip-value">
@@ -133,7 +133,7 @@ export function FarmContextCard({
           {sowingDate && (
             <div className="context-chip">
               <span className="context-chip-label">
-                <Calendar size={11} />
+                <Calendar size={11} color="var(--forest-dark)" />
                 Sown Date
               </span>
               <span className="context-chip-value">
@@ -145,7 +145,7 @@ export function FarmContextCard({
           {npk && (npk.n !== null || npk.p !== null || npk.k !== null) && (
             <div className="context-chip" style={{ gridColumn: 'span 2' }}>
               <span className="context-chip-label">
-                <Layers size={11} />
+                <Layers size={11} color="var(--forest-dark)" />
                 Measured N-P-K (kg/ha)
               </span>
               <span className="context-chip-value" style={{ color: 'var(--forest-dark)' }}>

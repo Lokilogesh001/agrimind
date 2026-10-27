@@ -59,13 +59,13 @@ export function DecisionPath({
         onClick={() => setExpanded(!expanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <GitMerge size={17} color="var(--forest-primary)" />
+          <GitMerge size={18} color="var(--forest-dark)" />
           <h3 style={{ fontSize: '15px', margin: 0 }}>HOW AGRIMIND REACHED THIS DECISION</h3>
         </div>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          style={{ fontSize: '11px', padding: '3px 8px' }}
+          style={{ fontSize: '11px', padding: '4px 10px' }}
         >
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           <span>{expanded ? 'Hide Trace' : 'View Decision Flow'}</span>
@@ -73,7 +73,7 @@ export function DecisionPath({
       </div>
 
       <div className="card-body">
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
           Visual trace of the multi-agent decision pipeline from raw field inputs through safety guards to final advisory:
         </p>
 
@@ -100,18 +100,18 @@ export function DecisionPath({
                 <span>Specialist Agent Evidence Extraction</span>
                 <span className="badge badge-brand" style={{ fontSize: '10px' }}>4 Agents</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '6px', marginTop: '6px', fontSize: '11.5px' }}>
-                <div style={{ background: 'var(--bg-surface)', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                  <strong>Weather Agent:</strong> {weatherFinding}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginTop: '8px', fontSize: '11.5px' }}>
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Weather Agent:</strong> <span style={{ color: 'var(--text-secondary)' }}>{weatherFinding}</span>
                 </div>
-                <div style={{ background: 'var(--bg-surface)', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                  <strong>Soil Agent:</strong> {soilFinding}
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Soil Agent:</strong> <span style={{ color: 'var(--text-secondary)' }}>{soilFinding}</span>
                 </div>
-                <div style={{ background: 'var(--bg-surface)', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                  <strong>Disease Agent:</strong> {diseaseFinding}
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Disease Agent:</strong> <span style={{ color: 'var(--text-secondary)' }}>{diseaseFinding}</span>
                 </div>
-                <div style={{ background: 'var(--bg-surface)', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                  <strong>Market Agent:</strong> {marketFinding}
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Market Agent:</strong> <span style={{ color: 'var(--text-secondary)' }}>{marketFinding}</span>
                 </div>
               </div>
             </div>
@@ -142,15 +142,15 @@ export function DecisionPath({
           {/* Node 4: Safety Guard */}
           <div className="flow-step-row">
             <div className="flow-step-num">4</div>
-            <div className="flow-step-content" style={{ borderLeft: '3px solid var(--forest-primary)' }}>
+            <div className="flow-step-content" style={{ borderLeft: '3px solid var(--forest-dark)' }}>
               <div className="flow-step-title">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={14} color="var(--forest-dark)" />
+                  <ShieldCheck size={15} color="var(--forest-dark)" />
                   Deterministic Agronomic Safety Guard
                 </span>
                 <span className="badge badge-success" style={{ fontSize: '10px' }}>Guarded</span>
               </div>
-              <div className="flow-step-desc" style={{ color: 'var(--forest-deep)', fontWeight: 500 }}>
+              <div className="flow-step-desc" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                 {safetyGuardSummary}
               </div>
             </div>
@@ -158,17 +158,17 @@ export function DecisionPath({
 
           {/* Node 5: Final Decision */}
           <div className="flow-step-row">
-            <div className="flow-step-num" style={{ background: 'var(--forest-dark)', color: '#fff', borderColor: 'var(--forest-deep)' }}>
+            <div className="flow-step-num" style={{ background: 'var(--forest-primary)', color: '#fff', borderColor: 'var(--forest-dark)' }}>
               5
             </div>
             <div className="flow-step-content" style={{ background: 'var(--forest-tint)', borderColor: 'var(--forest-tint-border)' }}>
               <div className="flow-step-title">
-                <span style={{ color: 'var(--forest-deep)', fontWeight: 800 }}>
+                <span style={{ color: 'var(--forest-dark)', fontWeight: 800 }}>
                   Authoritative Final Recommendation
                 </span>
                 <span className="badge badge-brand" style={{ fontSize: '11px' }}>Authoritative</span>
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--forest-dark)', marginTop: '2px' }}>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px', letterSpacing: '0.02em' }}>
                 {String(recommendation).replace(/_/g, ' ').toUpperCase()}
               </div>
             </div>

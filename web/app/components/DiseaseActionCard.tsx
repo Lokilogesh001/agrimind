@@ -82,7 +82,7 @@ export function DiseaseActionCard({
       <div className="card">
         <div className="card-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={17} color="var(--forest-primary)" />
+            <ShieldCheck size={18} color="var(--forest-dark)" />
             <h3 style={{ fontSize: '15px', margin: 0 }}>DISEASE MANAGEMENT</h3>
           </div>
           <StatusBadge label="NO DISEASE DETECTED" variant="success" icon="shield-check" size="sm" />
@@ -102,14 +102,14 @@ export function DiseaseActionCard({
       <div className="card">
         <div className="card-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={17} color="var(--semantic-success)" />
+            <ShieldCheck size={18} color="var(--semantic-success)" />
             <h3 style={{ fontSize: '15px', margin: 0 }}>DISEASE MANAGEMENT</h3>
           </div>
           <StatusBadge label="HEALTHY CROP" variant="success" icon="shield-check" size="sm" />
         </div>
         <div className="card-body">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CheckCircle2 size={20} color="var(--semantic-success)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <CheckCircle2 size={22} color="var(--semantic-success)" style={{ flexShrink: 0 }} />
             <div>
               <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
                 Foliage Appears Healthy
@@ -165,14 +165,14 @@ export function DiseaseActionCard({
     <div
       className="card"
       style={{
-        borderLeft: `4px solid ${isWeatherHold ? 'var(--semantic-warning)' : isMismatch ? 'var(--semantic-danger)' : 'var(--forest-primary)'}`,
+        borderLeft: `4px solid ${isWeatherHold ? 'var(--semantic-warning)' : isMismatch ? 'var(--semantic-danger)' : 'var(--forest-dark)'}`,
       }}
     >
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <ShieldAlert
             size={18}
-            color={isWeatherHold ? 'var(--semantic-warning)' : isMismatch ? 'var(--semantic-danger)' : 'var(--forest-primary)'}
+            color={isWeatherHold ? 'var(--semantic-warning)' : isMismatch ? 'var(--semantic-danger)' : 'var(--forest-dark)'}
           />
           <h3 style={{ fontSize: '15px', margin: 0 }}>DISEASE MANAGEMENT & VERIFIED TREATMENT</h3>
         </div>
@@ -185,26 +185,26 @@ export function DiseaseActionCard({
       </div>
 
       <div className="card-body">
-        {/* Weather Hold / Rainfall Veto Banner (P0-01, P0-04 Fix) */}
+        {/* Weather Hold / Rainfall Veto Banner */}
         {isWeatherHold && (
           <div
             style={{
-              padding: '12px 14px',
+              padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--semantic-warning-bg)',
               border: '1px solid var(--semantic-warning-border)',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '10px',
+              gap: '12px',
             }}
           >
-            <CloudRain size={20} color="var(--semantic-warning-text)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <CloudRain size={22} color="var(--semantic-warning-text)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong style={{ fontSize: '13.5px', color: 'var(--semantic-warning-text)' }}>
                 CHEMICAL SPRAYING TEMPORARILY DEFERRED · HIGH RAINFALL RISK
               </strong>
-              <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: 'var(--semantic-warning-text)', lineHeight: 1.45 }}>
+              <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
                 {perm.action_instruction ||
                   'Foliar spraying is suspended due to imminent rainfall. Applying chemicals in wet conditions causes pesticide wash-off, zero biological efficacy, and environmental runoff into water bodies.'}
               </p>
@@ -219,22 +219,22 @@ export function DiseaseActionCard({
         {isLowConfidence && !isMismatch && (
           <div
             style={{
-              padding: '12px 14px',
+              padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--semantic-warning-bg)',
               border: '1px solid var(--semantic-warning-border)',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '10px',
+              gap: '12px',
             }}
           >
-            <AlertTriangle size={18} color="var(--semantic-warning-text)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <AlertTriangle size={20} color="var(--semantic-warning-text)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong style={{ fontSize: '13px', color: 'var(--semantic-warning-text)' }}>
                 LOW CONFIDENCE DIAGNOSIS ({confPercent}%)
               </strong>
-              <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: 'var(--semantic-warning-text)' }}>
+              <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
                 Visual classifier score is below the 60% policy threshold. Chemical treatments are strictly prohibited pending in-person leaf inspection by an agronomist or local KVK.
               </p>
             </div>
@@ -245,29 +245,29 @@ export function DiseaseActionCard({
         {isMismatch && (
           <div
             style={{
-              padding: '12px 14px',
+              padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--semantic-danger-bg)',
               border: '1px solid var(--semantic-danger-border)',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '10px',
+              gap: '12px',
             }}
           >
-            <AlertTriangle size={18} color="var(--semantic-danger-text)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <AlertTriangle size={20} color="var(--semantic-danger-text)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong style={{ fontSize: '13px', color: 'var(--semantic-danger-text)' }}>
                 CROP MISMATCH GUARD ACTIVATED
               </strong>
-              <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: 'var(--semantic-danger-text)' }}>
+              <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
                 Selected crop is <strong>{crop}</strong>, but leaf model detected characteristics of <strong>{disease.crop_detected || 'another crop'}</strong>. Chemical action is blocked to avoid off-label phytotoxicity.
               </p>
             </div>
           </div>
         )}
 
-        {/* Diagnosis Header Details Grid (P0-03 Fix) */}
+        {/* Diagnosis Header Details Grid */}
         <div
           style={{
             display: 'grid',
@@ -275,7 +275,7 @@ export function DiseaseActionCard({
             gap: '12px',
             marginBottom: '16px',
             background: 'var(--bg-surface-soft)',
-            padding: '12px 14px',
+            padding: '12px 16px',
             borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--border-subtle)',
           }}
@@ -284,7 +284,7 @@ export function DiseaseActionCard({
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Detected Pathogen
             </span>
-            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
               {details?.disease_name || cleanName}
             </div>
           </div>
@@ -293,7 +293,7 @@ export function DiseaseActionCard({
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Classifier Score
             </span>
-            <div style={{ fontSize: '13.5px', fontWeight: 700, color: isLowConfidence ? 'var(--semantic-warning)' : 'var(--text-primary)' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, color: isLowConfidence ? 'var(--semantic-warning-text)' : 'var(--text-primary)', marginTop: '2px' }}>
               {confPercent}%
               <span style={{ fontSize: '10.5px', fontWeight: 400, color: 'var(--text-muted)', display: 'block' }}>
                 {disease.model_architecture || 'MobileNetV3-Large'} {disease.model_version ? `(${disease.model_version})` : ''}
@@ -305,7 +305,7 @@ export function DiseaseActionCard({
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Canopy Symptom Priority
             </span>
-            <div style={{ fontSize: '13.5px', fontWeight: 700, textTransform: 'capitalize', color: disease.severity === 'high' ? 'var(--semantic-danger)' : 'var(--text-primary)' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, textTransform: 'capitalize', color: disease.severity === 'high' ? 'var(--semantic-danger-text)' : 'var(--text-primary)', marginTop: '2px' }}>
               {disease.severity || 'Moderate'}
               <span style={{ fontSize: '10.5px', fontWeight: 400, color: 'var(--text-muted)', display: 'block' }}>
                 Virulence heuristic
@@ -321,7 +321,8 @@ export function DiseaseActionCard({
               style={{
                 fontSize: '13.5px',
                 fontWeight: 700,
-                color: isWeatherHold ? 'var(--semantic-warning-text)' : isPermitted ? 'var(--semantic-success)' : 'var(--semantic-danger)',
+                color: isWeatherHold ? 'var(--semantic-warning-text)' : isPermitted ? 'var(--semantic-success-text)' : 'var(--semantic-danger-text)',
+                marginTop: '2px',
               }}
             >
               {isWeatherHold ? 'HOLD (WEATHER)' : isPermitted ? 'PERMITTED' : 'RESTRICTED'}
@@ -336,18 +337,18 @@ export function DiseaseActionCard({
         {(disease.ambiguous || disease.recommendation_note) && !isMismatch && (
           <div
             style={{
-              padding: '10px 12px',
+              padding: '10px 14px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--bg-surface-soft)',
               border: '1px solid var(--border-color)',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '8px',
+              gap: '10px',
             }}
           >
-            <AlertCircle size={16} color="var(--forest-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            <AlertCircle size={16} color="var(--forest-dark)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <strong style={{ color: 'var(--text-primary)' }}>Diagnostic Confirmation Guidance: </strong>
               {disease.recommendation_note ||
                 'Visual symptoms are close to decision boundaries. Inspect under diffuse natural sunlight, examine lower leaf surfaces for fungal sporulation, and consult your regional agricultural extension officer before initiating chemical spraying.'}
@@ -355,15 +356,15 @@ export function DiseaseActionCard({
           </div>
         )}
 
-        {/* Crop Concordance Metric (if crop-aware evaluation was applied) */}
+        {/* Crop Concordance Metric */}
         {disease.crop_concordance !== null && disease.crop_concordance !== undefined && (
           <div
             style={{
-              padding: '8px 12px',
+              padding: '10px 14px',
               borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-surface)',
+              background: 'var(--bg-surface-soft)',
               border: '1px solid var(--border-subtle)',
-              marginBottom: '12px',
+              marginBottom: '14px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -373,7 +374,7 @@ export function DiseaseActionCard({
             <span style={{ color: 'var(--text-secondary)' }}>
               <strong>Crop Concordance Metric:</strong> {(disease.crop_concordance * 100).toFixed(1)}% probability alignment with entered crop ({crop})
             </span>
-            <span style={{ fontWeight: 600, color: disease.crop_concordance >= 0.15 ? 'var(--forest-primary)' : 'var(--semantic-warning-text)' }}>
+            <span style={{ fontWeight: 600, color: disease.crop_concordance >= 0.15 ? 'var(--forest-dark)' : 'var(--semantic-warning-text)' }}>
               {disease.crop_concordance >= 0.15 ? '✓ Concordant' : '⚠ Low Concordance'}
             </span>
           </div>
@@ -383,14 +384,14 @@ export function DiseaseActionCard({
         {disease.crop_aware_mode && (
           <div
             style={{
-              padding: '8px 12px',
+              padding: '10px 14px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--bg-surface-soft)',
               border: '1px solid var(--border-subtle)',
               marginBottom: '16px',
               fontSize: '11.5px',
               color: 'var(--text-secondary)',
-              lineHeight: 1.4,
+              lineHeight: 1.45,
             }}
           >
             <strong>Crop Constraint Disclosure:</strong> Vision probabilities were conditioned on user-specified crop ({crop}). User crop entry serves as contextual metadata and does not independently prove botanical identity.
@@ -400,7 +401,7 @@ export function DiseaseActionCard({
         {/* Top Alternative Diagnoses */}
         {disease.top_alternatives && disease.top_alternatives.length > 1 && (
           <div style={{ marginBottom: '16px' }}>
-            <h4 style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+            <h4 style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
               Differential Diagnoses (Top Alternative Candidate Pathogens)
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -415,17 +416,17 @@ export function DiseaseActionCard({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      background: idx === 0 ? 'var(--bg-surface-soft)' : 'var(--bg-surface)',
-                      border: '1px solid var(--border-subtle)',
+                      background: idx === 0 ? 'var(--forest-tint)' : 'var(--bg-surface-soft)',
+                      border: `1px solid ${idx === 0 ? 'var(--forest-tint-border)' : 'var(--border-subtle)'}`,
                       borderRadius: 'var(--radius-xs)',
-                      padding: '6px 10px',
+                      padding: '7px 12px',
                       fontSize: '12px',
                     }}
                   >
                     <span style={{ fontWeight: idx === 0 ? 600 : 400, color: 'var(--text-primary)' }}>
                       {idx + 1}. {altName}
                     </span>
-                    <span style={{ fontWeight: 600, color: idx === 0 ? 'var(--forest-primary)' : 'var(--text-muted)' }}>
+                    <span style={{ fontWeight: 600, color: idx === 0 ? 'var(--forest-dark)' : 'var(--text-muted)' }}>
                       {altPct}%
                     </span>
                   </div>
@@ -435,10 +436,10 @@ export function DiseaseActionCard({
           </div>
         )}
 
-        {/* Immediate Cultural & Field Sanitation Actions (Always Safe, Never Washed Off) */}
+        {/* Immediate Cultural & Field Sanitation Actions */}
         <div style={{ marginBottom: '16px' }}>
-          <h4 style={{ fontSize: '13px', color: 'var(--forest-dark)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <CheckCircle2 size={15} color="var(--forest-primary)" />
+          <h4 style={{ fontSize: '13px', color: 'var(--forest-dark)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <CheckCircle2 size={16} color="var(--forest-dark)" />
             Immediate Cultural Sanitation & Phytosanitary Measures:
           </h4>
           <p
@@ -446,9 +447,9 @@ export function DiseaseActionCard({
               margin: 0,
               fontSize: '13px',
               color: 'var(--text-primary)',
-              lineHeight: 1.5,
-              background: 'var(--bg-surface)',
-              padding: '10px 12px',
+              lineHeight: 1.55,
+              background: 'var(--bg-surface-soft)',
+              padding: '12px 14px',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-sm)',
             }}
@@ -458,19 +459,19 @@ export function DiseaseActionCard({
           </p>
         </div>
 
-        {/* Verified Chemical Treatment Specifications (P0-02 Fix) */}
+        {/* Verified Chemical Treatment Specifications */}
         {details && (
           <div
             style={{
               marginBottom: '16px',
-              padding: '12px 14px',
+              padding: '14px 16px',
               background: isWeatherHold ? 'var(--bg-surface-soft)' : 'var(--forest-tint)',
               border: `1px solid ${isWeatherHold ? 'var(--border-color)' : 'var(--forest-tint-border)'}`,
               borderRadius: 'var(--radius-sm)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--forest-dark)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--forest-dark)', letterSpacing: '0.04em' }}>
                 {isWeatherHold ? 'STANDBY REGISTERED FORMULATION (APPLY POST-RAIN)' : 'VERIFIED RECOMMENDED TREATMENT FORMULATION'}
               </span>
               <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
@@ -478,7 +479,7 @@ export function DiseaseActionCard({
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '12px' }}>
               <div>
                 <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>
                   Formulation
@@ -517,14 +518,14 @@ export function DiseaseActionCard({
             </div>
 
             {/* Application Notes */}
-            <p style={{ margin: '0 0 8px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            <p style={{ margin: '0 0 8px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <strong>Application Protocol:</strong> {details.application_notes}
             </p>
 
             {/* PPE Required */}
             {details.ppe_requirements && (
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                <strong>Mandatory PPE:</strong> {details.ppe_requirements.join(', ')}
+                <strong style={{ color: 'var(--text-primary)' }}>Mandatory PPE:</strong> {details.ppe_requirements.join(', ')}
               </div>
             )}
           </div>
@@ -535,19 +536,19 @@ export function DiseaseActionCard({
           <div
             style={{
               marginBottom: '16px',
-              padding: '12px 14px',
+              padding: '14px 16px',
               background: 'var(--bg-surface-soft)',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-sm)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <BookOpen size={16} color="var(--forest-primary)" />
+              <BookOpen size={16} color="var(--forest-dark)" />
               <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
                 State Agricultural Extension Consultation Required
               </strong>
             </div>
-            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               AgriMind enforces strict pesticide validation and does not guess chemical doses for non-cataloged combinations. Please visit your district Krishi Vigyan Kendra (KVK) or contact the Kisan Call Centre (Toll-Free 1800-180-1551) for registered recommendations.
             </p>
           </div>
@@ -559,15 +560,15 @@ export function DiseaseActionCard({
             fontSize: '11px',
             color: 'var(--text-muted)',
             background: 'var(--bg-surface-soft)',
-            padding: '8px 12px',
+            padding: '10px 14px',
             borderRadius: 'var(--radius-xs)',
             border: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'flex-start',
-            gap: '6px',
+            gap: '8px',
           }}
         >
-          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '1px' }} />
           <span>
             <strong>Statutory Safety Compliance:</strong> {perm.safety_disclaimer ||
               'Always follow statutory pesticide label instructions and safety intervals (PHI/REI). Never apply agrochemicals without verifying local agricultural department registration.'}
